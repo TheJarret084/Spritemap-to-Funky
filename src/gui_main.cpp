@@ -1,4 +1,7 @@
 #include <algorithm>
+#include <mutex>
+#include <thread>
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cstring>
@@ -67,6 +70,31 @@ static std::vector<AnimItem> load_anims_from_xml(const std::string& path) {
         item.source = def.source_anim;
         item.indices = indices_to_string(def.indices);
         out.push_back(item);
+    }
+    return out;
+}
+
+static std::vector<AnimItem> load_anims_from_animlist_json(const std::string& path) {
+    std::vector<AnimItem> out;
+    json data = json::parse(read_file_strip_bom(path));
+    if (!data.contains("animations") || !data["animations"].is_array()) return out;
+    for (const auto& anim : data["animations"]) {
+        if (!anim.is_object()) continue;
+        std::string anim_name = anim.value("anim", "");
+        std::string symbol_name = anim.value("name", "");
+        if (anim_name.empty()) anim_name = symbol_name;
+        if (symbol_name.empty()) symbol_name = anim_name;
+        if (anim_name.empty() || symbol_name.empty()) continue;
+
+        std::string indices;
+        if (anim.contains("indices") && anim["indices"].is_array()) {
+            std::vector<int> idxs;
+            for (const auto& v : anim["indices"]) {
+                if (v.is_number_integer()) idxs.push_back(v.get<int>());
+            }
+            indices = indices_to_string(idxs);
+        }
+        out.push_back({anim_name, symbol_name, indices});
     }
     return out;
 }
@@ -174,7 +202,7 @@ static void set_window_icon(SDL_Window* window) {
     }
 }
 
-enum class PickMode { None, AnimJson, AtlasJson, AtlasPng, Xml, OutDir };
+enum class PickMode { None, AnimJson, AtlasJson, AtlasPng, Xml, AnimListJson, OutDir };
 
 struct PickerState {
     bool open = false;
@@ -339,12 +367,19 @@ int main(int, char**) {
     std::string atlas_json;
     std::string atlas_png;
     std::string xml_path;
+    std::string anims_json;
     std::string out_dir = "out";
 
     std::vector<AnimItem> anims;
     std::vector<bool> selected;
     std::string anim_filter;
     std::string log_text;
+    std::mutex log_mutex;
+    std::atomic<bool> export_running(false);
+    std::atomic<int> export_current(0);
+    std::atomic<int> export_total(0);
+    std::string export_anim;
+    std::thread export_thread;
 
     Texture atlas_tex;
 
@@ -352,7 +387,10 @@ int main(int, char**) {
 
     auto refresh_anims = [&]() {
         anims.clear();
-        if (!xml_path.empty() && std::filesystem::is_regular_file(xml_path)) {
+        if (!anims_json.empty() && std::filesystem::is_regular_file(anims_json)) {
+            try { anims = load_anims_from_animlist_json(anims_json); } catch (...) { anims.clear(); }
+        }
+        if (anims.empty() && !xml_path.empty() && std::filesystem::is_regular_file(xml_path)) {
             try { anims = load_anims_from_xml(xml_path); } catch (...) { anims.clear(); }
         }
         if (anims.empty() && !anim_json.empty() && std::filesystem::is_regular_file(anim_json)) {
@@ -401,12 +439,124 @@ int main(int, char**) {
         }
     };
 
+    auto json_has_key = [&](const std::string& path, const std::string& key) -> bool {
+        try {
+            json j = json::parse(read_file_strip_bom(path));
+            return j.contains(key);
+        } catch (...) {
+            return false;
+        }
+    };
+
+    auto assign_json_by_content = [&](const std::string& path) {
+        try {
+            json j = json::parse(read_file_strip_bom(path));
+            if (j.contains("ATLAS")) {
+                atlas_json = path;
+                return;
+            }
+            if (j.contains("AN") && j.contains("SD")) {
+                anim_json = path;
+                refresh_anims();
+                return;
+            }
+            if (j.contains("animations")) {
+                anims_json = path;
+                refresh_anims();
+                return;
+            }
+        } catch (...) {
+        }
+        // Fallback by filename
+        std::string lower = path;
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c){ return std::tolower(c); });
+        if (lower.find("animation") != std::string::npos) {
+            anim_json = path;
+            refresh_anims();
+            return;
+        }
+        if (lower.find("spritemap") != std::string::npos) {
+            atlas_json = path;
+            return;
+        }
+        // Default to anim list
+        anims_json = path;
+        refresh_anims();
+    };
+
+    auto assign_path = [&](const std::string& p) {
+        std::filesystem::path path(p);
+        std::error_code ec;
+        if (std::filesystem::is_directory(path, ec)) {
+            for (const auto& e : std::filesystem::directory_iterator(path, ec)) {
+                if (ec) break;
+                auto file = e.path();
+                auto name = file.filename().string();
+                auto ext = file.extension().string();
+                std::string lower = name;
+                std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c){ return std::tolower(c); });
+
+                if (lower == "animation.json") {
+                    anim_json = file.string();
+                    continue;
+                }
+                if (lower == "spritemap1.json") {
+                    atlas_json = file.string();
+                    continue;
+                }
+                if (lower == "spritemap1.png") {
+                    atlas_png = file.string();
+                    continue;
+                }
+                if (ext == ".xml") {
+                    if (xml_path.empty()) xml_path = file.string();
+                    continue;
+                }
+                if (ext == ".json") {
+                    if (json_has_key(file.string(), "animations")) {
+                        anims_json = file.string();
+                    }
+                }
+            }
+            refresh_anims();
+            return;
+        }
+
+        std::string ext = path.extension().string();
+        std::string lower_ext = ext;
+        std::transform(lower_ext.begin(), lower_ext.end(), lower_ext.begin(), [](unsigned char c){ return std::tolower(c); });
+        if (lower_ext == ".xml") {
+            xml_path = p;
+            refresh_anims();
+            return;
+        }
+        if (lower_ext == ".png") {
+            atlas_png = p;
+            load_preview();
+            return;
+        }
+        if (lower_ext == ".json") {
+            assign_json_by_content(p);
+            return;
+        }
+    };
+
     bool done = false;
     while (!done) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) done = true;
+            if (event.type == SDL_DROPFILE) {
+                if (event.drop.file) {
+                    assign_path(event.drop.file);
+                    SDL_free(event.drop.file);
+                }
+            }
+        }
+
+        if (export_thread.joinable() && !export_running.load()) {
+            export_thread.join();
         }
 
         ImGui_ImplSDLRenderer2_NewFrame();
@@ -435,7 +585,10 @@ int main(int, char**) {
 
             std::string temp_xml;
             std::string use_xml = xml_path;
-            if (!xml_path.empty() && std::filesystem::is_regular_file(xml_path)) {
+            if (!anims_json.empty() && std::filesystem::is_regular_file(anims_json)) {
+                temp_xml = write_temp_xml(selected_anims);
+                use_xml = temp_xml;
+            } else if (!xml_path.empty() && std::filesystem::is_regular_file(xml_path)) {
                 if (selected_anims.size() != anims.size()) {
                     temp_xml = write_temp_xml(selected_anims);
                     use_xml = temp_xml;
@@ -445,15 +598,43 @@ int main(int, char**) {
                 use_xml = temp_xml;
             }
 
-            std::string log;
-            int code = run_export(anim_json, atlas_json, out_dir, use_xml, &log);
-            log_text += log;
-            if (code != 0) log_text += "Export fallo con codigo: " + std::to_string(code) + "\n";
-
-            if (!temp_xml.empty()) {
-                std::error_code ec;
-                std::filesystem::remove(temp_xml, ec);
+            std::string final_out = out_dir;
+            if (final_out.empty()) {
+                std::string base;
+                if (!anims_json.empty()) base = std::filesystem::path(anims_json).stem().string();
+                else if (!xml_path.empty()) base = std::filesystem::path(xml_path).stem().string();
+                else if (!anim_json.empty()) base = std::filesystem::path(anim_json).parent_path().filename().string();
+                if (base.empty()) base = "project";
+                final_out = (std::filesystem::path("out") / base).string();
             }
+
+            if (export_running.load()) {
+                log_text += "Export en progreso...\n";
+                return;
+            }
+
+            export_running = true;
+            export_current = 0;
+            export_total = 0;
+            export_anim.clear();
+
+            export_thread = std::thread([=, &log_text, &log_mutex, &export_running, &export_current, &export_total, &export_anim]() {
+                std::string log;
+                auto cb = [&](int cur, int total, const std::string& anim) {
+                    export_current = cur;
+                    export_total = total;
+                    if (!anim.empty()) export_anim = anim;
+                };
+                int code = run_export(anim_json, atlas_json, final_out, use_xml, cb, &log);
+                if (!temp_xml.empty()) {
+                    std::error_code ec;
+                    std::filesystem::remove(temp_xml, ec);
+                }
+                std::lock_guard<std::mutex> lock(log_mutex);
+                log_text += log;
+                if (code != 0) log_text += "Export fallo con codigo: " + std::to_string(code) + "\n";
+                export_running = false;
+            });
         };
 
         ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
@@ -464,7 +645,8 @@ int main(int, char**) {
                     if (ImGui::MenuItem("Abrir Animation.json")) open_picker(PickMode::AnimJson, false, {".json"}, anim_json);
                     if (ImGui::MenuItem("Abrir spritemap1.json")) open_picker(PickMode::AtlasJson, false, {".json"}, atlas_json);
                     if (ImGui::MenuItem("Abrir atlas PNG (preview)")) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
-                    if (ImGui::MenuItem("Abrir anims.xml")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
+                    if (ImGui::MenuItem("Abrir anims.xml (codename)")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
+                    if (ImGui::MenuItem("Abrir anims.json (psych)")) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
                     if (ImGui::MenuItem("Elegir salida")) open_picker(PickMode::OutDir, true, {}, out_dir);
                     if (ImGui::MenuItem("Salir")) done = true;
                     ImGui::EndMenu();
@@ -486,6 +668,8 @@ int main(int, char**) {
             if (ImGui::Button("Atlas PNG")) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
             ImGui::SameLine();
             if (ImGui::Button("anims.xml")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
+            ImGui::SameLine();
+            if (ImGui::Button("anims.json")) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
             ImGui::SameLine();
             if (ImGui::Button("Salida")) open_picker(PickMode::OutDir, true, {}, out_dir);
             ImGui::SameLine();
@@ -520,7 +704,11 @@ int main(int, char**) {
                 ImGui::SameLine();
                 if (ImGui::Button("...##atlaspng")) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
 
-                InputTextString("anims.xml", xml_path);
+                InputTextString("anims.xml (codename)", xml_path);
+InputTextString("anims.json (psych)", anims_json);
+                ImGui::SameLine();
+                if (ImGui::Button("...##animsjson")) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
+
                 ImGui::SameLine();
                 if (ImGui::Button("...##xml")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
 
@@ -573,10 +761,24 @@ int main(int, char**) {
                 }
                 ImGui::EndChild();
 
+                if (export_running.load()) {
+                    int total = export_total.load();
+                    int cur = export_current.load();
+                    float frac = 0.0f;
+                    if (total > 0) frac = static_cast<float>(cur) / static_cast<float>(total);
+                    std::string label = "Exportando";
+                    if (!export_anim.empty()) label += ": " + export_anim;
+                    ImGui::ProgressBar(frac, ImVec2(-1, 0), label.c_str());
+                    ImGui::Spacing();
+                }
+
                 ImGui::Text("Log");
                 ImGui::Separator();
                 ImGui::BeginChild("log", ImVec2(0, 0), true);
-                ImGui::TextUnformatted(log_text.c_str());
+                {
+                    std::lock_guard<std::mutex> lock(log_mutex);
+                    ImGui::TextUnformatted(log_text.c_str());
+                }
                 ImGui::EndChild();
 
                 ImGui::EndChild();
@@ -592,6 +794,7 @@ int main(int, char**) {
                 case PickMode::AtlasJson: atlas_json = chosen; break;
                 case PickMode::AtlasPng: atlas_png = chosen; load_preview(); break;
                 case PickMode::Xml: xml_path = chosen; refresh_anims(); break;
+                case PickMode::AnimListJson: anims_json = chosen; refresh_anims(); break;
                 case PickMode::OutDir: out_dir = chosen; break;
                 default: break;
             }
@@ -603,6 +806,8 @@ int main(int, char**) {
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
     }
+
+    if (export_thread.joinable()) export_thread.join();
 
     if (atlas_tex.tex) SDL_DestroyTexture(atlas_tex.tex);
 

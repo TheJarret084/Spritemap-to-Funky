@@ -32,6 +32,7 @@ int run_export(
     const std::string& atlas_path,
     const std::string& out_dir,
     const std::string& xml_path,
+    ProgressCallback progress_cb,
     std::string* log_out
 ) {
     json anim;
@@ -101,6 +102,12 @@ int run_export(
         main_sym.name = "main";
     }
 
+    struct ExportJob {
+        const Symbol* sym = nullptr;
+        std::string out_name;
+        std::vector<int> frames;
+    };
+
     std::filesystem::create_directories(out_dir);
 
     std::vector<AnimDef> anim_defs;
@@ -117,13 +124,17 @@ int run_export(
         }
     }
 
-    auto export_symbol = [&](const Symbol& sym, const std::string& out_name, const std::vector<int>& frames) {
+    int progress_current = 0;
+    int progress_total = 0;
+
+    auto export_symbol = [&](const ExportJob& job) {
+        const Symbol& sym = *job.sym;
         if (sym.timeline.total_frames <= 0) return;
-        std::string safe_name = sanitize_name(out_name);
+        std::string safe_name = sanitize_name(job.out_name);
         std::filesystem::path anim_dir = std::filesystem::path(out_dir) / safe_name;
         std::filesystem::create_directories(anim_dir);
 
-        std::vector<int> frame_list = frames;
+        std::vector<int> frame_list = job.frames;
         if (frame_list.empty()) {
             frame_list.reserve(sym.timeline.total_frames);
             for (int f = 0; f < sym.timeline.total_frames; ++f) frame_list.push_back(f);
@@ -159,22 +170,50 @@ int run_export(
             std::snprintf(filename, sizeof(filename), "%s_%04d.png", safe_name.c_str(), out_idx++);
             std::filesystem::path out_path = anim_dir / filename;
             stbi_write_png(out_path.string().c_str(), canvas.w, canvas.h, 4, canvas.pixels.data(), canvas.w * 4);
+
+            progress_current++;
+            if (progress_cb) progress_cb(progress_current, progress_total, job.out_name);
         }
     };
 
+    std::vector<ExportJob> jobs;
     if (!anim_defs.empty()) {
         for (const auto& def : anim_defs) {
             if (def.source_anim == main_sym.name) {
-                export_symbol(main_sym, def.name, def.indices);
+                jobs.push_back({&main_sym, def.name, def.indices});
                 continue;
             }
             auto it = symbols.find(def.source_anim);
-            if (it == symbols.end()) continue;
-            export_symbol(it->second, def.name, def.indices);
+            if (it == symbols.end()) {
+                // Fallback: some anim lists use `name` as the symbol id.
+                auto it2 = symbols.find(def.name);
+                if (it2 == symbols.end()) continue;
+                jobs.push_back({&it2->second, def.source_anim, def.indices});
+                continue;
+            }
+            jobs.push_back({&it->second, def.name, def.indices});
         }
     } else {
-        export_symbol(main_sym, main_sym.name, {});
-        for (const auto& kv : symbols) export_symbol(kv.second, kv.second.name, {});
+        jobs.push_back({&main_sym, main_sym.name, {}});
+        for (const auto& kv : symbols) jobs.push_back({&kv.second, kv.second.name, {}});
+    }
+
+    for (const auto& job : jobs) {
+        const Symbol& sym = *job.sym;
+        int count = 0;
+        if (job.frames.empty()) count = sym.timeline.total_frames;
+        else {
+            for (int f : job.frames) {
+                if (f >= 0 && f < sym.timeline.total_frames) count++;
+            }
+        }
+        progress_total += count;
+    }
+
+    if (progress_cb) progress_cb(progress_current, progress_total, "");
+
+    for (const auto& job : jobs) {
+        export_symbol(job);
     }
 
     log_line(log_out, "listo. salida en: " + out_dir + "\n", false);

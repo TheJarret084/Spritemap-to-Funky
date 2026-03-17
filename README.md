@@ -59,7 +59,6 @@ make
 Binarios finales:
 
 ```
-build/spritemap_export
 build/Spritemap_to_Funky
 ```
 
@@ -101,27 +100,12 @@ Si al correr falla por `SDL2.dll`, copia la DLL desde:
 
 Si no tienes PNG, el programa intenta `assets/icon.bmp` como fallback.
 
-## Uso CLI
-
-```bash
-./spritemap_export Animation.json spritemap1.json [out_dir] [anims.xml]
-```
-
-Ejemplo:
-
-```bash
-./spritemap_export \
-  muestra-de-spritemap/sprite/gf/Animation.json \
-  muestra-de-spritemap/sprite/gf/spritemap1.json \
-  out \
-  muestra-de-spritemap/data/gf.xml
-```
-
 ## Entradas esperadas
 
 - `Animation.json`: exportado desde Adobe Animate. Contiene el timeline principal (`AN`) y los símbolos (`SD`).
 - `spritemap1.json` + `spritemap1.png`: atlas con los sprites referenciados por nombre.
 - `anims.xml` (opcional): define qué animaciones exportar, nombres finales e índices.
+- `anims.json` (opcional, estilo FNF): lista de anims como en `bf.json`.
 
 ## Cómo se interpreta el formato
 
@@ -149,6 +133,8 @@ Este exporter asume el JSON de Animate con estas convenciones:
 
 ## Exportación (cómo se genera cada PNG)
 
+Si no llenas `Salida`, se usa `out/<nombre>` (por ejemplo `out/bf`).
+
 1. Se parsean todos los símbolos desde `SD`.
 2. Se calcula el tamaño del canvas por animación usando el **bounding box** de todos sus frames.
 3. Se renderiza cada frame con el mismo canvas para alinear las posiciones.
@@ -163,11 +149,12 @@ Este exporter asume el JSON de Animate con estas convenciones:
 Incluye:
 
 - Selector de archivos con navegación
-- Inputs para `Animation.json`, `spritemap1.json`, `anims.xml` y salida
+- Inputs para `Animation.json`, `spritemap1.json`, `anims.xml` / `anims.json` y salida
 - Campo extra para cargar `atlas PNG` manualmente
 - Preview del atlas
 - Selección de animaciones e índices
 - Log de export
+- Arrastrar y soltar archivos o carpetas en la ventana
 - Icono de ventana desde `assets/icon.png` (se busca relativo al directorio actual)
 
 ## GUI simple en Python (alternativa)

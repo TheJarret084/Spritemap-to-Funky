@@ -13,16 +13,6 @@ set(COMMON_SOURCES
     src/stb_impl.cpp
 )
 
-add_executable(spritemap_export
-    ${COMMON_SOURCES}
-    src/main.cpp
-)
-
-target_include_directories(spritemap_export PRIVATE
-    include
-    third_party
-)
-
 # GUI target (SDL2 + Dear ImGui)
 if (WIN32)
     find_package(SDL2 CONFIG REQUIRED)
@@ -49,7 +39,6 @@ add_executable(Spritemap_to_Funky
     src/gui_main.cpp
     ${IMGUI_SOURCES}
 )
-
 
 if (WIN32)
     if (EXISTS ${CMAKE_SOURCE_DIR}/assets/app.rc)

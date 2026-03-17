@@ -1,5 +1,6 @@
 # Build
 /build/
+# dist/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
@@ -42,6 +43,7 @@ __pycache__/
 
 # Local outputs
 out*/
+/source_test
 
 # Logs
 *.log
