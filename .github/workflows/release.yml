@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config libsdl2-dev
+
+      - name: Build + package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x build_Unix.sh package_release.sh
+          ./build_Unix.sh
+          ./package_release.sh
+
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg
+          ./vcpkg/bootstrap-vcpkg.bat
+          "VCPKG_ROOT=$PWD/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build + package (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          call build_windows.bat
+          call package_release_windows.bat
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.os }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build-ubuntu-latest/*.tar.gz
+            build-windows-latest/*.zip
