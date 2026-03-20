@@ -5,11 +5,13 @@ project(Spritemap_to_Funky)
 set(CMAKE_CXX_STANDARD 17)
 
 set(COMMON_SOURCES
+    src/i18n.cpp
     src/parser.cpp
     src/render.cpp
     src/math.cpp
     src/utils.cpp
     src/exporter.cpp
+    src/exporter_ase.cpp
     src/stb_impl.cpp
 )
 

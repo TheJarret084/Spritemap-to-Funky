@@ -1,0 +1,73 @@
+<lang name="en">
+  <string key="app_title">Spritemap to Funky</string>
+  <string key="picker_title">Select</string>
+  <string key="picker_dir">Directory:</string>
+  <string key="picker_path">Path</string>
+  <string key="picker_go">Go</string>
+  <string key="picker_filter">Filter</string>
+  <string key="picker_use_folder">Use this folder</string>
+  <string key="picker_select">Select</string>
+  <string key="picker_open_folder">Open folder</string>
+  <string key="picker_cancel">Cancel</string>
+
+  <string key="menu_file">File</string>
+  <string key="menu_open_anim_json">Open Animation.json</string>
+  <string key="menu_open_atlas_json">Open spritemap1.json</string>
+  <string key="menu_open_atlas_png">Open atlas PNG (preview)</string>
+  <string key="menu_open_anims_xml">Open anims.xml (codename)</string>
+  <string key="menu_open_anims_json">Open anims.json (psych)</string>
+  <string key="menu_choose_out">Choose output</string>
+  <string key="menu_exit">Exit</string>
+
+  <string key="menu_actions">Actions</string>
+  <string key="menu_refresh_anims">Refresh anims</string>
+  <string key="menu_load_preview">Load preview</string>
+  <string key="menu_export">Export</string>
+
+  <string key="menu_language">Language</string>
+  <string key="menu_lang_auto">Auto (system)</string>
+  <string key="menu_lang_es">Spanish</string>
+  <string key="menu_lang_en">English</string>
+  <string key="menu_lang_load">Load XML...</string>
+  <string key="menu_lang_reload">Reload XML</string>
+
+  <string key="toolbar_anim_json">Animation.json</string>
+  <string key="toolbar_atlas_json">spritemap1.json</string>
+  <string key="toolbar_atlas_png">Atlas PNG</string>
+  <string key="toolbar_anims_xml">anims.xml</string>
+  <string key="toolbar_anims_json">anims.json</string>
+  <string key="toolbar_out">Output</string>
+  <string key="toolbar_refresh">Refresh</string>
+  <string key="toolbar_preview">Preview</string>
+  <string key="toolbar_export">Export</string>
+
+  <string key="section_inputs">Inputs</string>
+  <string key="label_anim_json">Animation.json</string>
+  <string key="label_atlas_json">spritemap1.json</string>
+  <string key="label_atlas_png">Atlas PNG (preview)</string>
+  <string key="label_anims_xml">anims.xml (codename)</string>
+  <string key="label_anims_json">anims.json (psych)</string>
+  <string key="label_out">Output</string>
+  <string key="label_export_frames">Export PNG frames</string>
+  <string key="label_export_ase">Export .ase</string>
+  <string key="label_aseprite_cli">Aseprite CLI</string>
+
+  <string key="section_anims">Animations</string>
+  <string key="label_filter">Filter</string>
+  <string key="button_all">All</string>
+  <string key="button_none">None</string>
+
+  <string key="section_preview">Preview</string>
+  <string key="text_no_preview">No preview loaded.</string>
+  <string key="label_exporting">Exporting</string>
+
+  <string key="section_log">Log</string>
+
+  <string key="log_no_preview_atlas_json">Could not read spritemap1.json for preview.</string>
+  <string key="log_no_preview_both">No atlas PNG or spritemap1.json for preview.</string>
+  <string key="log_no_preview_load">Could not load atlas for preview.</string>
+  <string key="log_no_anim_selected">Select at least one animation.</string>
+  <string key="log_export_running">Export in progress...</string>
+  <string key="log_export_failed_code">Export failed with code: </string>
+  <string key="log_lang_load_failed">Could not load language: </string>
+</lang>

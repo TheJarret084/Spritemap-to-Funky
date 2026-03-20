@@ -12,5 +12,8 @@ int run_export(
     const std::string& out_dir,
     const std::string& xml_path,
     ProgressCallback progress_cb = nullptr,
-    std::string* log_out = nullptr
+    std::string* log_out = nullptr,
+    const std::string& aseprite_path = "",
+    bool export_ase = false,
+    bool export_frames = true
 );

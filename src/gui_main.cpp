@@ -4,12 +4,17 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <ctime>
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <SDL2/SDL.h>
 
 #include "imgui.h"
@@ -21,6 +26,7 @@
 #include "exporter.hpp"
 #include "parser.hpp"
 #include "utils.hpp"
+#include "i18n.hpp"
 
 #include "stb/stb_image.h"
 
@@ -202,7 +208,102 @@ static void set_window_icon(SDL_Window* window) {
     }
 }
 
-enum class PickMode { None, AnimJson, AtlasJson, AtlasPng, Xml, AnimListJson, OutDir };
+static std::string detect_system_lang() {
+#ifdef _WIN32
+    LANGID lang_id = GetUserDefaultUILanguage();
+    switch (PRIMARYLANGID(lang_id)) {
+        case LANG_SPANISH: return "es";
+        case LANG_ENGLISH: return "en";
+        default: break;
+    }
+#endif
+
+    const char* envs[] = {"LC_ALL", "LC_MESSAGES", "LANG"};
+    for (const char* e : envs) {
+        const char* val = std::getenv(e);
+        if (!val || !*val) continue;
+        std::string s(val);
+        size_t cut = s.find_first_of("._-@");
+        if (cut != std::string::npos) s = s.substr(0, cut);
+        for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (s == "es" || s == "en") return s;
+        if (s.size() >= 2) {
+            std::string pref = s.substr(0, 2);
+            if (pref == "es" || pref == "en") return pref;
+        }
+    }
+    return {};
+}
+
+static std::string find_asset_path(const std::string& rel) {
+    std::vector<std::filesystem::path> bases;
+    bases.push_back(std::filesystem::current_path());
+
+    if (char* base = SDL_GetBasePath()) {
+        std::filesystem::path p(base);
+        SDL_free(base);
+        bases.push_back(p);
+        if (p.has_parent_path()) bases.push_back(p.parent_path());
+        if (p.has_parent_path() && p.parent_path().has_parent_path()) {
+            bases.push_back(p.parent_path().parent_path());
+        }
+    }
+
+    for (const auto& b : bases) {
+        std::filesystem::path full = b / rel;
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(full, ec)) return full.string();
+    }
+    return {};
+}
+
+static std::filesystem::path get_exe_dir() {
+    if (char* base = SDL_GetBasePath()) {
+        std::filesystem::path p(base);
+        SDL_free(base);
+        return p;
+    }
+    return std::filesystem::current_path();
+}
+
+static std::string timestamp_now() {
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    char buf[32];
+    if (std::strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm) == 0) {
+        return "unknown";
+    }
+    return buf;
+}
+
+static void write_log_file(const std::filesystem::path& logs_dir, const std::string& text) {
+    std::error_code ec;
+    std::filesystem::create_directories(logs_dir, ec);
+    std::filesystem::path file = logs_dir / ("log_" + timestamp_now() + ".txt");
+    std::ofstream f(file, std::ios::binary);
+    if (f.is_open()) {
+        if (!text.empty()) f << text;
+        else f << "log vacio\n";
+    }
+}
+
+static std::filesystem::path get_config_path() {
+    std::filesystem::path base;
+    if (char* pref = SDL_GetPrefPath("SpritemapToFunky", "SpritemapToFunky")) {
+        base = pref;
+        SDL_free(pref);
+    } else {
+        base = std::filesystem::current_path();
+    }
+    return base / "config.json";
+}
+
+enum class PickMode { None, AnimJson, AtlasJson, AtlasPng, Xml, AnimListJson, OutDir, LangXml };
 
 struct PickerState {
     bool open = false;
@@ -233,16 +334,18 @@ static bool filter_match(const std::string& name, const std::string& filter) {
     return it != name.end();
 }
 
-static bool draw_picker(PickerState& picker, std::string& chosen) {
+static bool draw_picker(PickerState& picker, std::string& chosen, I18n& i18n) {
     bool picked = false;
+    auto tr = [&](const char* key, const char* fallback) { return i18n.tr(key, fallback); };
+    std::string picker_title = std::string(tr("picker_title", "Seleccionar")) + "##picker";
     if (picker.open) {
-        ImGui::OpenPopup("Seleccionar");
+        ImGui::OpenPopup(picker_title.c_str());
         picker.path_input = picker.cwd.string();
         picker.open = false;
     }
 
-    if (ImGui::BeginPopupModal("Seleccionar", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Directorio:");
+    if (ImGui::BeginPopupModal(picker_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("%s", tr("picker_dir", "Directorio:"));
         ImGui::SameLine();
         ImGui::TextUnformatted(picker.cwd.string().c_str());
 
@@ -251,9 +354,9 @@ static bool draw_picker(PickerState& picker, std::string& chosen) {
             picker.path_input = picker.cwd.string();
         }
         ImGui::SameLine();
-        InputTextString("Ruta", picker.path_input);
+        InputTextString(tr("picker_path", "Ruta"), picker.path_input);
         ImGui::SameLine();
-        if (ImGui::Button("Ir")) {
+        if (ImGui::Button(tr("picker_go", "Ir"))) {
             std::filesystem::path p = picker.path_input;
             std::error_code ec;
             if (std::filesystem::is_directory(p, ec)) {
@@ -263,7 +366,7 @@ static bool draw_picker(PickerState& picker, std::string& chosen) {
             }
         }
 
-        InputTextString("Filtro", picker.filter);
+        InputTextString(tr("picker_filter", "Filtro"), picker.filter);
 
         ImGui::BeginChild("file_list", ImVec2(600, 300), true);
         std::vector<std::filesystem::directory_entry> entries;
@@ -301,13 +404,13 @@ static bool draw_picker(PickerState& picker, std::string& chosen) {
         ImGui::EndChild();
 
         if (picker.dir_only) {
-            if (ImGui::Button("Usar esta carpeta")) {
+            if (ImGui::Button(tr("picker_use_folder", "Usar esta carpeta"))) {
                 chosen = picker.cwd.string();
                 picked = true;
                 ImGui::CloseCurrentPopup();
             }
         } else {
-            if (ImGui::Button("Seleccionar")) {
+            if (ImGui::Button(tr("picker_select", "Seleccionar"))) {
                 if (!picker.selected.empty()) {
                     chosen = picker.selected;
                     picked = true;
@@ -315,7 +418,7 @@ static bool draw_picker(PickerState& picker, std::string& chosen) {
                 }
             }
             ImGui::SameLine();
-            if (ImGui::Button("Abrir carpeta")) {
+            if (ImGui::Button(tr("picker_open_folder", "Abrir carpeta"))) {
                 if (!picker.selected.empty()) {
                     std::error_code ec;
                     if (std::filesystem::is_directory(picker.selected, ec)) {
@@ -328,7 +431,7 @@ static bool draw_picker(PickerState& picker, std::string& chosen) {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Cancelar")) {
+        if (ImGui::Button(tr("picker_cancel", "Cancelar"))) {
             ImGui::CloseCurrentPopup();
         }
 
@@ -363,12 +466,17 @@ int main(int, char**) {
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
+    I18n i18n;
+
     std::string anim_json;
     std::string atlas_json;
     std::string atlas_png;
     std::string xml_path;
     std::string anims_json;
     std::string out_dir = "out";
+    std::string aseprite_path = "aseprite";
+    bool export_frames = true;
+    bool export_ase = false;
 
     std::vector<AnimItem> anims;
     std::vector<bool> selected;
@@ -384,6 +492,81 @@ int main(int, char**) {
     Texture atlas_tex;
 
     PickerState picker;
+
+    std::string lang_xml;
+    std::string lang_es = find_asset_path("assets/lang/es.xml");
+    std::string lang_en = find_asset_path("assets/lang/en.xml");
+    std::filesystem::path config_path = get_config_path();
+    bool lang_auto = true;
+    std::string lang_override;
+
+    auto load_config = [&]() {
+        std::ifstream f(config_path);
+        if (!f.good()) return;
+        try {
+            json j;
+            f >> j;
+            lang_auto = j.value("lang_auto", true);
+            lang_override = j.value("lang_path", "");
+        } catch (...) {
+        }
+    };
+
+    auto save_config = [&]() {
+        try {
+            std::error_code ec;
+            std::filesystem::create_directories(config_path.parent_path(), ec);
+            json j;
+            j["lang_auto"] = lang_auto;
+            j["lang_path"] = lang_override;
+            std::ofstream f(config_path);
+            if (f.good()) f << j.dump(2);
+        } catch (...) {
+        }
+    };
+
+    auto set_lang = [&](const std::string& path) -> bool {
+        std::string err;
+        if (path.empty()) {
+            i18n.clear();
+            lang_xml.clear();
+            SDL_SetWindowTitle(window, i18n.tr("app_title", "Spritemap to Funky"));
+            return true;
+        }
+        if (!i18n.load_xml(path, &err)) {
+            log_text += std::string(i18n.tr("log_lang_load_failed", "No pude cargar idioma: ")) + path + "\n";
+            return false;
+        }
+        lang_xml = path;
+        SDL_SetWindowTitle(window, i18n.tr("app_title", "Spritemap to Funky"));
+        return true;
+    };
+
+    load_config();
+
+    auto apply_auto_lang = [&]() {
+        std::string detected_lang = detect_system_lang();
+        if (detected_lang == "es" && !lang_es.empty()) {
+            set_lang(lang_es);
+        } else if (detected_lang == "en" && !lang_en.empty()) {
+            set_lang(lang_en);
+        } else if (!lang_es.empty()) {
+            set_lang(lang_es);
+        } else if (!lang_en.empty()) {
+            set_lang(lang_en);
+        }
+    };
+
+    if (!lang_auto && !lang_override.empty() && std::filesystem::is_regular_file(lang_override)) {
+        set_lang(lang_override);
+    } else {
+        lang_auto = true;
+        lang_override.clear();
+        save_config();
+        apply_auto_lang();
+    }
+
+    auto tr = [&](const char* key, const char* fallback) { return i18n.tr(key, fallback); };
 
     auto refresh_anims = [&]() {
         anims.clear();
@@ -426,16 +609,16 @@ int main(int, char**) {
                 std::filesystem::path p = std::filesystem::path(atlas_json).parent_path() / img;
                 img_path = p.string();
             } catch (...) {
-                log_text += "No pude leer spritemap1.json para preview.\n";
+                log_text += std::string(tr("log_no_preview_atlas_json", "No pude leer spritemap1.json para preview.")) + "\n";
                 return;
             }
         } else {
-            log_text += "No hay atlas PNG ni spritemap1.json para preview.\n";
+            log_text += std::string(tr("log_no_preview_both", "No hay atlas PNG ni spritemap1.json para preview.")) + "\n";
             return;
         }
 
         if (!load_texture_from_png(renderer, img_path, atlas_tex)) {
-            log_text += "No pude cargar atlas para preview.\n";
+            log_text += std::string(tr("log_no_preview_load", "No pude cargar atlas para preview.")) + "\n";
         }
     };
 
@@ -579,7 +762,7 @@ int main(int, char**) {
                 if (selected[i]) selected_anims.push_back(anims[i]);
             }
             if (selected_anims.empty()) {
-                log_text += "Selecciona al menos una animacion.\n";
+                log_text += std::string(tr("log_no_anim_selected", "Selecciona al menos una animacion.")) + "\n";
                 return;
             }
 
@@ -609,7 +792,7 @@ int main(int, char**) {
             }
 
             if (export_running.load()) {
-                log_text += "Export en progreso...\n";
+                log_text += std::string(tr("log_export_running", "Export en progreso...")) + "\n";
                 return;
             }
 
@@ -625,59 +808,94 @@ int main(int, char**) {
                     export_total = total;
                     if (!anim.empty()) export_anim = anim;
                 };
-                int code = run_export(anim_json, atlas_json, final_out, use_xml, cb, &log);
+                int code = run_export(anim_json, atlas_json, final_out, use_xml, cb, &log, aseprite_path, export_ase, export_frames);
                 if (!temp_xml.empty()) {
                     std::error_code ec;
                     std::filesystem::remove(temp_xml, ec);
                 }
                 std::lock_guard<std::mutex> lock(log_mutex);
                 log_text += log;
-                if (code != 0) log_text += "Export fallo con codigo: " + std::to_string(code) + "\n";
+                if (code != 0) {
+                    log_text += std::string(tr("log_export_failed_code", "Export fallo con codigo: ")) + std::to_string(code) + "\n";
+                    std::string fail_log = log;
+                    if (!fail_log.empty() && fail_log.back() != '\n') fail_log += "\n";
+                    fail_log += std::string(tr("log_export_failed_code", "Export fallo con codigo: ")) + std::to_string(code) + "\n";
+                    write_log_file(get_exe_dir() / "logs", fail_log);
+                }
                 export_running = false;
             });
         };
 
         ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(1180, 760), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("Spritemap to Funky", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse)) {
+        if (ImGui::Begin(tr("app_title", "Spritemap to Funky"), nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse)) {
             if (ImGui::BeginMenuBar()) {
-                if (ImGui::BeginMenu("Archivo")) {
-                    if (ImGui::MenuItem("Abrir Animation.json")) open_picker(PickMode::AnimJson, false, {".json"}, anim_json);
-                    if (ImGui::MenuItem("Abrir spritemap1.json")) open_picker(PickMode::AtlasJson, false, {".json"}, atlas_json);
-                    if (ImGui::MenuItem("Abrir atlas PNG (preview)")) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
-                    if (ImGui::MenuItem("Abrir anims.xml (codename)")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
-                    if (ImGui::MenuItem("Abrir anims.json (psych)")) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
-                    if (ImGui::MenuItem("Elegir salida")) open_picker(PickMode::OutDir, true, {}, out_dir);
-                    if (ImGui::MenuItem("Salir")) done = true;
+                if (ImGui::BeginMenu(tr("menu_file", "Archivo"))) {
+                    if (ImGui::MenuItem(tr("menu_open_anim_json", "Abrir Animation.json"))) open_picker(PickMode::AnimJson, false, {".json"}, anim_json);
+                    if (ImGui::MenuItem(tr("menu_open_atlas_json", "Abrir spritemap1.json"))) open_picker(PickMode::AtlasJson, false, {".json"}, atlas_json);
+                    if (ImGui::MenuItem(tr("menu_open_atlas_png", "Abrir atlas PNG (preview)"))) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
+                    if (ImGui::MenuItem(tr("menu_open_anims_xml", "Abrir anims.xml (codename)"))) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
+                    if (ImGui::MenuItem(tr("menu_open_anims_json", "Abrir anims.json (psych)"))) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
+                    if (ImGui::MenuItem(tr("menu_choose_out", "Elegir salida"))) open_picker(PickMode::OutDir, true, {}, out_dir);
+                    if (ImGui::MenuItem(tr("menu_exit", "Salir"))) done = true;
                     ImGui::EndMenu();
                 }
-                if (ImGui::BeginMenu("Acciones")) {
-                    if (ImGui::MenuItem("Refrescar anims")) refresh_anims();
-                    if (ImGui::MenuItem("Cargar preview")) load_preview();
-                    if (ImGui::MenuItem("Exportar")) do_export();
+                if (ImGui::BeginMenu(tr("menu_actions", "Acciones"))) {
+                    if (ImGui::MenuItem(tr("menu_refresh_anims", "Refrescar anims"))) refresh_anims();
+                    if (ImGui::MenuItem(tr("menu_load_preview", "Cargar preview"))) load_preview();
+                    if (ImGui::MenuItem(tr("menu_export", "Exportar"))) do_export();
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu(tr("menu_language", "Idioma"))) {
+                    bool es_active = !lang_es.empty() && (lang_xml == lang_es);
+                    bool en_active = !lang_en.empty() && (lang_xml == lang_en);
+                    if (ImGui::MenuItem(tr("menu_lang_auto", "Auto (sistema)"), nullptr, lang_auto)) {
+                        lang_auto = true;
+                        lang_override.clear();
+                        save_config();
+                        apply_auto_lang();
+                    }
+                    if (ImGui::MenuItem(tr("menu_lang_es", "Espanol"), nullptr, es_active, !lang_es.empty())) {
+                        lang_auto = false;
+                        lang_override = lang_es;
+                        save_config();
+                        set_lang(lang_es);
+                    }
+                    if (ImGui::MenuItem(tr("menu_lang_en", "English"), nullptr, en_active, !lang_en.empty())) {
+                        lang_auto = false;
+                        lang_override = lang_en;
+                        save_config();
+                        set_lang(lang_en);
+                    }
+                    if (ImGui::MenuItem(tr("menu_lang_load", "Cargar XML..."))) {
+                        open_picker(PickMode::LangXml, false, {".xml"}, lang_xml);
+                    }
+                    if (!lang_xml.empty()) {
+                        if (ImGui::MenuItem(tr("menu_lang_reload", "Recargar XML"))) set_lang(lang_xml);
+                    }
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();
             }
 
             ImGui::BeginChild("toolbar", ImVec2(0, 34), false);
-            if (ImGui::Button("Animation.json")) open_picker(PickMode::AnimJson, false, {".json"}, anim_json);
+            if (ImGui::Button(tr("toolbar_anim_json", "Animation.json"))) open_picker(PickMode::AnimJson, false, {".json"}, anim_json);
             ImGui::SameLine();
-            if (ImGui::Button("spritemap1.json")) open_picker(PickMode::AtlasJson, false, {".json"}, atlas_json);
+            if (ImGui::Button(tr("toolbar_atlas_json", "spritemap1.json"))) open_picker(PickMode::AtlasJson, false, {".json"}, atlas_json);
             ImGui::SameLine();
-            if (ImGui::Button("Atlas PNG")) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
+            if (ImGui::Button(tr("toolbar_atlas_png", "Atlas PNG"))) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
             ImGui::SameLine();
-            if (ImGui::Button("anims.xml")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
+            if (ImGui::Button(tr("toolbar_anims_xml", "anims.xml"))) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
             ImGui::SameLine();
-            if (ImGui::Button("anims.json")) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
+            if (ImGui::Button(tr("toolbar_anims_json", "anims.json"))) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
             ImGui::SameLine();
-            if (ImGui::Button("Salida")) open_picker(PickMode::OutDir, true, {}, out_dir);
+            if (ImGui::Button(tr("toolbar_out", "Salida"))) open_picker(PickMode::OutDir, true, {}, out_dir);
             ImGui::SameLine();
-            if (ImGui::Button("Refrescar")) refresh_anims();
+            if (ImGui::Button(tr("toolbar_refresh", "Refrescar"))) refresh_anims();
             ImGui::SameLine();
-            if (ImGui::Button("Preview")) load_preview();
+            if (ImGui::Button(tr("toolbar_preview", "Preview"))) load_preview();
             ImGui::SameLine();
-            if (ImGui::Button("Exportar")) do_export();
+            if (ImGui::Button(tr("toolbar_export", "Exportar"))) do_export();
             ImGui::EndChild();
 
             ImGui::Separator();
@@ -689,42 +907,46 @@ int main(int, char**) {
                 ImGui::TableNextColumn();
                 ImGui::BeginChild("left", ImVec2(0, 0), false);
 
-                ImGui::Text("Entradas");
+                ImGui::Text("%s", tr("section_inputs", "Entradas"));
                 ImGui::Separator();
 
-                InputTextString("Animation.json", anim_json);
+                InputTextString(tr("label_anim_json", "Animation.json"), anim_json);
                 ImGui::SameLine();
                 if (ImGui::Button("...##anim")) open_picker(PickMode::AnimJson, false, {".json"}, anim_json);
 
-                InputTextString("spritemap1.json", atlas_json);
+                InputTextString(tr("label_atlas_json", "spritemap1.json"), atlas_json);
                 ImGui::SameLine();
                 if (ImGui::Button("...##atlas")) open_picker(PickMode::AtlasJson, false, {".json"}, atlas_json);
 
-                InputTextString("Atlas PNG (preview)", atlas_png);
+                InputTextString(tr("label_atlas_png", "Atlas PNG (preview)"), atlas_png);
                 ImGui::SameLine();
                 if (ImGui::Button("...##atlaspng")) open_picker(PickMode::AtlasPng, false, {".png"}, atlas_png);
 
-                InputTextString("anims.xml (codename)", xml_path);
-InputTextString("anims.json (psych)", anims_json);
+                InputTextString(tr("label_anims_xml", "anims.xml (codename)"), xml_path);
+                InputTextString(tr("label_anims_json", "anims.json (psych)"), anims_json);
                 ImGui::SameLine();
                 if (ImGui::Button("...##animsjson")) open_picker(PickMode::AnimListJson, false, {".json"}, anims_json);
 
                 ImGui::SameLine();
                 if (ImGui::Button("...##xml")) open_picker(PickMode::Xml, false, {".xml"}, xml_path);
 
-                InputTextString("Salida", out_dir);
+                InputTextString(tr("label_out", "Salida"), out_dir);
                 ImGui::SameLine();
                 if (ImGui::Button("...##out")) open_picker(PickMode::OutDir, true, {}, out_dir);
 
+                ImGui::Checkbox(tr("label_export_frames", "Exportar frames PNG"), &export_frames);
+                ImGui::Checkbox(tr("label_export_ase", "Exportar .ase"), &export_ase);
+                InputTextString(tr("label_aseprite_cli", "Aseprite CLI"), aseprite_path);
+
                 ImGui::Separator();
-                ImGui::Text("Animaciones");
+                ImGui::Text("%s", tr("section_anims", "Animaciones"));
                 ImGui::Separator();
 
-                InputTextString("Filtro", anim_filter);
+                InputTextString(tr("label_filter", "Filtro"), anim_filter);
                 ImGui::SameLine();
-                if (ImGui::Button("Todo")) std::fill(selected.begin(), selected.end(), true);
+                if (ImGui::Button(tr("button_all", "Todo"))) std::fill(selected.begin(), selected.end(), true);
                 ImGui::SameLine();
-                if (ImGui::Button("Nada")) std::fill(selected.begin(), selected.end(), false);
+                if (ImGui::Button(tr("button_none", "Nada"))) std::fill(selected.begin(), selected.end(), false);
 
                 ImGui::BeginChild("anim_list", ImVec2(0, 0), true);
                 for (size_t i = 0; i < anims.size(); ++i) {
@@ -742,7 +964,7 @@ InputTextString("anims.json (psych)", anims_json);
                 ImGui::TableNextColumn();
                 ImGui::BeginChild("right", ImVec2(0, 0), false);
 
-                ImGui::Text("Preview");
+                ImGui::Text("%s", tr("section_preview", "Preview"));
                 ImGui::Separator();
 
                 float right_h = ImGui::GetContentRegionAvail().y;
@@ -757,7 +979,7 @@ InputTextString("anims.json (psych)", anims_json);
                     }
                     ImGui::Image((ImTextureID)atlas_tex.tex, ImVec2(atlas_tex.w * scale, atlas_tex.h * scale));
                 } else {
-                    ImGui::Text("Sin preview cargado.");
+                    ImGui::Text("%s", tr("text_no_preview", "Sin preview cargado."));
                 }
                 ImGui::EndChild();
 
@@ -766,13 +988,13 @@ InputTextString("anims.json (psych)", anims_json);
                     int cur = export_current.load();
                     float frac = 0.0f;
                     if (total > 0) frac = static_cast<float>(cur) / static_cast<float>(total);
-                    std::string label = "Exportando";
+                    std::string label = tr("label_exporting", "Exportando");
                     if (!export_anim.empty()) label += ": " + export_anim;
                     ImGui::ProgressBar(frac, ImVec2(-1, 0), label.c_str());
                     ImGui::Spacing();
                 }
 
-                ImGui::Text("Log");
+                ImGui::Text("%s", tr("section_log", "Log"));
                 ImGui::Separator();
                 ImGui::BeginChild("log", ImVec2(0, 0), true);
                 {
@@ -788,7 +1010,7 @@ InputTextString("anims.json (psych)", anims_json);
         ImGui::End();
 
         std::string chosen;
-        if (draw_picker(picker, chosen)) {
+        if (draw_picker(picker, chosen, i18n)) {
             switch (picker.mode) {
                 case PickMode::AnimJson: anim_json = chosen; refresh_anims(); break;
                 case PickMode::AtlasJson: atlas_json = chosen; break;
@@ -796,6 +1018,12 @@ InputTextString("anims.json (psych)", anims_json);
                 case PickMode::Xml: xml_path = chosen; refresh_anims(); break;
                 case PickMode::AnimListJson: anims_json = chosen; refresh_anims(); break;
                 case PickMode::OutDir: out_dir = chosen; break;
+                case PickMode::LangXml:
+                    lang_auto = false;
+                    lang_override = chosen;
+                    save_config();
+                    set_lang(chosen);
+                    break;
                 default: break;
             }
         }

@@ -2,10 +2,13 @@
 #include <filesystem>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "nlohmann/json.hpp"
 
 #include "exporter.hpp"
+#include "exporter_ase.hpp"
+#include "math.hpp"
 #include "parser.hpp"
 #include "render.hpp"
 #include "utils.hpp"
@@ -33,7 +36,10 @@ int run_export(
     const std::string& out_dir,
     const std::string& xml_path,
     ProgressCallback progress_cb,
-    std::string* log_out
+    std::string* log_out,
+    const std::string& aseprite_path,
+    bool export_ase,
+    bool export_frames
 ) {
     json anim;
     json atlas_json;
@@ -156,23 +162,152 @@ int run_export(
         offset.tx = -bounds.minx;
         offset.ty = -bounds.miny;
 
+        std::vector<std::string> layer_order;
+        std::unordered_map<std::string, std::string> raw_to_safe;
+        std::unordered_set<std::string> used_safe;
+
+        auto register_layer = [&](const std::string& raw) -> std::string {
+            auto it = raw_to_safe.find(raw);
+            if (it != raw_to_safe.end()) return it->second;
+            std::string base = sanitize_name(raw);
+            if (base.empty()) base = "layer";
+            std::string name = base;
+            int suffix = 1;
+            while (used_safe.count(name)) {
+                name = base + "_" + std::to_string(suffix++);
+            }
+            raw_to_safe[raw] = name;
+            used_safe.insert(name);
+            layer_order.push_back(name);
+            return name;
+        };
+
+        auto get_layer = [&](const std::string& raw) -> std::string {
+            auto it = raw_to_safe.find(raw);
+            if (it != raw_to_safe.end()) return it->second;
+            return register_layer(raw);
+        };
+
+        auto visit_elements = [&](auto&& self,
+                                  const Symbol& cur,
+                                  int frame,
+                                  const Transform& parent,
+                                  const std::string& prefix,
+                                  std::unordered_map<std::string, int>& occ,
+                                  auto&& on_sprite) -> void {
+            for (int li = static_cast<int>(cur.timeline.layers.size()) - 1; li >= 0; --li) {
+                const auto& layer = cur.timeline.layers[li];
+                const Frame* fr = nullptr;
+                for (const auto& f : layer.frames) {
+                    if (frame >= f.start && frame < f.start + f.duration) {
+                        fr = &f;
+                        break;
+                    }
+                }
+                if (!fr) continue;
+                for (const auto& e : fr->elements) {
+                    Transform t = multiply(parent, e.transform);
+                    std::string base = prefix + cur.name + "_L" + std::to_string(li) + "_" + e.name + "_" +
+                        (e.type == Element::Type::AtlasSprite ? "A" : "S");
+                    int idx = occ[base]++;
+                    std::string raw = base;
+                    if (idx > 0) raw += "_" + std::to_string(idx);
+
+                    if (e.type == Element::Type::AtlasSprite) {
+                        auto it = atlas.find(e.name);
+                        if (it == atlas.end()) continue;
+                        on_sprite(it->second, t, raw);
+                    } else {
+                        auto it = symbols.find(e.name);
+                        if (it == symbols.end()) continue;
+                        const Symbol& child = it->second;
+                        int child_frame = resolve_child_frame(e, frame, fr->start, child.timeline.total_frames);
+                        std::string child_prefix = raw + "__";
+                        self(self, child, child_frame, t, child_prefix, occ, on_sprite);
+                    }
+                }
+            }
+        };
+
+        if (export_ase) {
+            for (int f : frame_list) {
+                if (f < 0 || f >= sym.timeline.total_frames) continue;
+                std::unordered_map<std::string, int> occ;
+                visit_elements(visit_elements, sym, f, offset, "", occ,
+                    [&](const Sprite&, const Transform&, const std::string& raw) {
+                        register_layer(raw);
+                    }
+                );
+            }
+        }
+
+        std::filesystem::path layers_dir = anim_dir / "_layers";
+        if (export_ase) std::filesystem::create_directories(layers_dir);
+
+        auto init_canvas = [&](Image& img) {
+            if (!img.pixels.empty()) return;
+            img.w = canvas_w;
+            img.h = canvas_h;
+            img.pixels.assign(img.w * img.h * 4, 0);
+        };
+
         int out_idx = 0;
         for (int f : frame_list) {
             if (f < 0 || f >= sym.timeline.total_frames) continue;
-            Image canvas;
-            canvas.w = canvas_w;
-            canvas.h = canvas_h;
-            canvas.pixels.assign(canvas.w * canvas.h * 4, 0);
+            int frame_out = out_idx++;
 
-            render_symbol(sym, f, offset, symbols, atlas, atlas_img, canvas);
+            if (export_frames) {
+                Image canvas;
+                canvas.w = canvas_w;
+                canvas.h = canvas_h;
+                canvas.pixels.assign(canvas.w * canvas.h * 4, 0);
 
-            char filename[256];
-            std::snprintf(filename, sizeof(filename), "%s_%04d.png", safe_name.c_str(), out_idx++);
-            std::filesystem::path out_path = anim_dir / filename;
-            stbi_write_png(out_path.string().c_str(), canvas.w, canvas.h, 4, canvas.pixels.data(), canvas.w * 4);
+                render_symbol(sym, f, offset, symbols, atlas, atlas_img, canvas);
+
+                char filename[256];
+                std::snprintf(filename, sizeof(filename), "%s_%04d.png", safe_name.c_str(), frame_out);
+                std::filesystem::path out_path = anim_dir / filename;
+                stbi_write_png(out_path.string().c_str(), canvas.w, canvas.h, 4, canvas.pixels.data(), canvas.w * 4);
+            }
+
+            if (export_ase) {
+                std::unordered_map<std::string, Image> layer_images;
+                std::unordered_map<std::string, int> occ;
+
+                visit_elements(visit_elements, sym, f, offset, "", occ,
+                    [&](const Sprite& spr, const Transform& t, const std::string& raw) {
+                        std::string layer_name = get_layer(raw);
+                        Image& img = layer_images[layer_name];
+                        init_canvas(img);
+                        draw_sprite_affine(atlas_img, spr, t, img);
+                    }
+                );
+
+                for (const auto& layer_name : layer_order) {
+                    auto it = layer_images.find(layer_name);
+                    Image img;
+                    if (it != layer_images.end()) {
+                        img = std::move(it->second);
+                    } else {
+                        init_canvas(img);
+                    }
+
+                    std::filesystem::path layer_dir = layers_dir / layer_name;
+                    std::filesystem::create_directories(layer_dir);
+                    char lname[256];
+                    std::snprintf(lname, sizeof(lname), "%s_%04d.png", layer_name.c_str(), frame_out);
+                    std::filesystem::path lpath = layer_dir / lname;
+                    stbi_write_png(lpath.string().c_str(), img.w, img.h, 4, img.pixels.data(), img.w * 4);
+                }
+            }
 
             progress_current++;
             if (progress_cb) progress_cb(progress_current, progress_total, job.out_name);
+        }
+
+        if (export_ase && out_idx > 0 && !layer_order.empty()) {
+            std::filesystem::path out_ase = std::filesystem::path(out_dir) / (safe_name + ".ase");
+            export_ase_from_layers(layers_dir.string(), layer_order, out_idx, out_ase.string(), aseprite_path, log_out);
         }
     };
 
