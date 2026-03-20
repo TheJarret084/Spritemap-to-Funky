@@ -4,9 +4,7 @@ This document explains how to configure and use the `.ase` output from the app.
 
 ## Preview
 
-![Preview 1](assets/page/captura.png)
-
-![Preview 2](assets/page/ase_screenshoot.jpg)
+![Preview 1](assets/page/ase_screenshoot.jpg)
 
 ## 1) Aseprite CLI path
 The **Aseprite CLI** field must point to the real Aseprite executable (console mode).
