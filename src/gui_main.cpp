@@ -306,7 +306,7 @@ static std::filesystem::path get_config_path() {
     return base / "config.json";
 }
 
-enum class PickMode { None, AnimJson, AtlasJson, AtlasPng, Xml, AnimListJson, OutDir, LangXml };
+enum class PickMode { None, AnimJson, AtlasJson, AtlasPng, Xml, AnimListJson, OutDir, LangXml, AsepriteExe };
 
 struct PickerState {
     bool open = false;
@@ -749,6 +749,8 @@ int main(int, char**) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
+        bool export_ase_prev = export_ase;
+
         auto open_picker = [&](PickMode mode, bool dir_only, const std::vector<std::string>& exts, const std::string& path) {
             picker.mode = mode;
             picker.dir_only = dir_only;
@@ -939,7 +941,22 @@ int main(int, char**) {
 
                 ImGui::Checkbox(tr("label_export_frames", "Exportar frames PNG"), &export_frames);
                 ImGui::Checkbox(tr("label_export_ase", "Exportar .ase"), &export_ase);
-                InputTextString(tr("label_aseprite_cli", "Aseprite CLI"), aseprite_path);
+                if (export_ase && !export_ase_prev) {
+#ifdef _WIN32
+                    open_picker(PickMode::AsepriteExe, false, {".exe"}, aseprite_path);
+#else
+                    open_picker(PickMode::AsepriteExe, false, {}, aseprite_path);
+#endif
+                }
+                if (export_ase) {
+                    InputTextString(tr("label_aseprite_cli", "Aseprite CLI"), aseprite_path);
+                    ImGui::SameLine();
+#ifdef _WIN32
+                    if (ImGui::Button("...##aseprite")) open_picker(PickMode::AsepriteExe, false, {".exe"}, aseprite_path);
+#else
+                    if (ImGui::Button("...##aseprite")) open_picker(PickMode::AsepriteExe, false, {}, aseprite_path);
+#endif
+                }
 
                 ImGui::Separator();
                 ImGui::Text("%s", tr("section_anims", "Animaciones"));
@@ -1021,6 +1038,7 @@ int main(int, char**) {
                 case PickMode::Xml: xml_path = chosen; refresh_anims(); break;
                 case PickMode::AnimListJson: anims_json = chosen; refresh_anims(); break;
                 case PickMode::OutDir: out_dir = chosen; break;
+                case PickMode::AsepriteExe: aseprite_path = chosen; break;
                 case PickMode::LangXml:
                     lang_auto = false;
                     lang_override = chosen;

@@ -105,6 +105,10 @@ int export_ase_from_layers(
     f.close();
 
     std::string exe = aseprite_path.empty() ? "aseprite" : aseprite_path;
+    {
+        std::error_code rm_ec;
+        std::filesystem::remove(out_ase, rm_ec);
+    }
     std::string cmd = quote_arg(exe) + " -b --script " + quote_arg(script_path.string());
     int ret = run_command(cmd, log_out);
 

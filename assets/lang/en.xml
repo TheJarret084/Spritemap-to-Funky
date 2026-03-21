@@ -54,8 +54,8 @@
 
   <string key="section_anims">Animations</string>
   <string key="label_filter">Filter</string>
-  <string key="button_all">All</string>
-  <string key="button_none">None</string>
+  <string key="button_all">Select all</string>
+  <string key="button_none">Deselected all</string>
 
   <string key="section_preview">Preview</string>
   <string key="text_no_preview">No preview loaded.</string>
@@ -70,4 +70,5 @@
   <string key="log_export_running">Export in progress...</string>
   <string key="log_export_failed_code">Export failed with code: </string>
   <string key="log_lang_load_failed">Could not load language: </string>
+  <!-- Ayuda no se ingles -->
 </lang>

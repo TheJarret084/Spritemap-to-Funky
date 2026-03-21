@@ -54,8 +54,8 @@
 
   <string key="section_anims">Animaciones</string>
   <string key="label_filter">Filtro</string>
-  <string key="button_all">Todo</string>
-  <string key="button_none">Nada</string>
+  <string key="button_all">Seleccionar todo</string>
+  <string key="button_none">Deseleccionar todo</string>
 
   <string key="section_preview">Preview</string>
   <string key="text_no_preview">Sin preview cargado.</string>

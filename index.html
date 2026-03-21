@@ -5,35 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Spritemap to Funky - Descargas</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-+fB3h2f7bQKJ8o5i8Gk2o0z7sV3S1wW6t8i6D0r3H/0+3bq1y2QYw3b1r9a9Tn0tGgJ1L3w0Z3gJ1B1iJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="icon" href="/assets/icon.ico" type="image/x-icon">
+  <link rel="icon" href="./assets/icon.ico" type="image/x-icon">
   <style>
-    body { font-family: Arial, sans-serif; background: #0f1115; color: #e7e7e7; margin: 0; }
-    .wrap { max-width: 720px; margin: 40px auto; padding: 0 16px; }
-    h1 { margin: 0 0 10px; }
-    p { color: #b9c0cc; }
-    .card { background: #171a21; border: 1px solid #2a2f3a; border-radius: 10px; padding: 16px; margin-top: 16px; }
-    a.btn { display: inline-block; padding: 10px 14px; background: #4fb3a5; color: #0b0d11; text-decoration: none; border-radius: 6px; font-weight: bold; }
-    .muted { color: #8d95a3; font-size: 0.9em; }
+    :root {
+      --bg: #0b0f16;
+      --bg-2: #0f1822;
+      --card: #141b26;
+      --card-2: #111824;
+      --border: #243244;
+      --text: #eaf0f7;
+      --muted: #a9b5c7;
+      --accent: #63d0b6;
+      --accent-2: #f2c14e;
+      --shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    body {
+      font-family: "Space Grotesk", "Sora", "Arial", sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(99, 208, 182, 0.10), transparent 60%),
+        radial-gradient(900px 500px at 90% 0%, rgba(242, 193, 78, 0.10), transparent 55%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      margin: 0;
+    }
+    .wrap { max-width: 760px; margin: 44px auto; padding: 0 16px; }
+    h1 { margin: 0 0 10px; letter-spacing: 0.3px; }
+    p { color: var(--muted); }
+    .card {
+      background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      box-shadow: var(--shadow);
+    }
+    a.btn {
+      display: inline-block;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, var(--accent) 0%, #48bfa7 100%);
+      color: #071018;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    .muted { color: var(--muted); font-size: 0.9em; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
-  
-    .footer { margin-top: 32px; padding: 16px; border-top: 1px solid #2a2f3a; color: #9aa3b2; font-size: 0.95em; }
-    .contact { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .discord-link { color: #4fb3a5; text-decoration: none; font-weight: bold; }
-  
-    h2 { margin: 0 0 8px; }
-    .card { box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-    .btn { transition: transform .08s ease, box-shadow .08s ease; }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(79,179,165,0.35); }
-    .footer { display: flex; flex-direction: column; gap: 6px; }
-    .contact { gap: 10px; }
+
+    .footer {
+      margin-top: 32px;
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.95em;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .contact { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
     .discord-link { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: #23272a; color: #5865f2; }
     .discord-link:hover { background: #2b2f33; }
+
+    h2 { margin: 0 0 8px; }
+    .btn { transition: transform .08s ease, box-shadow .08s ease; }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(99,208,182,0.35); }
+    .columns { display: flex; gap: 14px; flex-wrap: wrap; }
+    .col { flex: 1 1 260px; background: #121924; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-weight: bold; color: var(--text); }
+    .step { margin: 6px 0; color: #c6cbd6; }
+    .gb-embed { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Spritemap to Funky</h1>
-    <p>Descargas oficiales de builds. (Windows estará disponible después)</p>
+    <div class="card gb-embed">
+      <a href="https://gamebanana.com/tools/22191"><img src="https://gamebanana.com/tools/embeddables/22191?type=large"/></a>
+    </div>
+
+    <p>Descargas oficiales de builds.</p>
 
     <div class="card">
       <h2>Linux x64</h2>
@@ -53,6 +103,42 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>Video tutorial</h2>
+      <p class="muted">Guía rápida de uso de la app. (La proxima si lo edito)</p>
+      <video controls preload="metadata" style="width: 100%; border-radius: 10px; border: 1px solid #2a2f3a;">
+        <source src="./assets/page/tutorial-2026-03-20_19.09.53.mp4" type="video/mp4">
+        Tu navegador no soporta video HTML5.
+      </video>
+      <details>
+        <summary>Pasos básicos y qué tener a mano (ES/EN)</summary>
+        <div class="columns" style="margin-top: 10px;">
+          <div class="col">
+            <h3 style="margin: 0 0 8px;">Español</h3>
+            <div class="step">1. Ten a mano `Animation.json`, `spritemap1.json` y `spritemap1.png`.</div>
+            <div class="step">2. Abre los archivos con los botones de la izquierda. || Puedes tirar los archivos a la app y ahorras el progreso.</div>
+            <div class="step">3. Si usas `anims.xml` o `anims.json`, cárgalo para nombres/indices.</div>
+            <div class="step">4. Elige la carpeta de salida (`Salida`).</div>
+            <div class="step">5. Marca `Exportar frames PNG` si quieres PNGs por frame.</div>
+            <div class="step">6. Marca `Exportar .ase` si quieres el archivo `.ase` final.</div>
+            <div class="step">7. Si exportas `.ase`, selecciona la ruta de Aseprite CLI.</div>
+            <div class="step">8. Presiona `Exportar` y revisa el Log si hay errores.</div>
+          </div>
+          <div class="col">
+            <h3 style="margin: 0 0 8px;">English</h3>
+            <div class="step">1. Have `Animation.json`, `spritemap1.json`, and `spritemap1.png` ready.</div>
+            <div class="step">2. Open the files using the buttons on the left.</div>
+            <div class="step">3. If you have `anims.xml` or `anims.json`, load it for names/indices.</div>
+            <div class="step">4. Pick the output folder (`Salida`).</div>
+            <div class="step">5. Enable `Export frames PNG` if you want per-frame PNGs.</div>
+            <div class="step">6. Enable `Export .ase` to generate the final `.ase` file.</div>
+            <div class="step">7. If exporting `.ase`, choose your Aseprite CLI path.</div>
+            <div class="step">8. Press `Export` and check the Log for errors.</div>
+          </div>
+        </div>
+      </details>
+    </div>
+
     <p class="muted">Si el link no funciona, usa la sección Releases en GitHub.</p>
   </div>
 
@@ -68,6 +154,5 @@
       </a>
     </div>
   </footer>
-
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Build
 /build/
-# dist/
+/dist/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
