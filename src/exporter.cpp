@@ -96,7 +96,14 @@ int run_export(
             Symbol sym;
             sym.name = jstring_or(s, "SN", "");
             if (s.contains("TL")) sym.timeline = parse_timeline(s["TL"]);
-            symbols[sym.name] = sym;
+            if (!sym.name.empty()) symbols[sym.name] = sym;
+        }
+    } else if (anim.contains("SYMBOL_DICTIONARY") && anim["SYMBOL_DICTIONARY"].contains("Symbols")) {
+        for (const auto& s : anim["SYMBOL_DICTIONARY"]["Symbols"]) {
+            Symbol sym;
+            sym.name = jstring_or(s, "SYMBOL_name", "");
+            if (s.contains("TIMELINE")) sym.timeline = parse_timeline(s["TIMELINE"]);
+            if (!sym.name.empty()) symbols[sym.name] = sym;
         }
     }
 
@@ -104,6 +111,9 @@ int run_export(
     if (anim.contains("AN")) {
         main_sym.name = jstring_or(anim["AN"], "N", "main");
         if (anim["AN"].contains("TL")) main_sym.timeline = parse_timeline(anim["AN"]["TL"]);
+    } else if (anim.contains("ANIMATION")) {
+        main_sym.name = jstring_or(anim["ANIMATION"], "SYMBOL_name", "main");
+        if (anim["ANIMATION"].contains("TIMELINE")) main_sym.timeline = parse_timeline(anim["ANIMATION"]["TIMELINE"]);
     } else {
         main_sym.name = "main";
     }

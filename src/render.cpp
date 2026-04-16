@@ -90,10 +90,12 @@ int resolve_child_frame(const Element& e, int parent_frame, int instance_start, 
     int rel = parent_frame - instance_start;
     if (rel < 0) rel = 0;
     int base = rel + e.first_frame;
-    if (e.loop == "SF") {
+    std::string loop = e.loop;
+    for (char& c : loop) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (loop == "sf" || loop == "singleframe" || loop == "single_frame") {
         return std::clamp(e.first_frame, 0, child_total - 1);
     }
-    if (e.loop == "PO") {
+    if (loop == "po" || loop == "playonce" || loop == "play_once") {
         return std::min(base, child_total - 1);
     }
     // Default: loop
