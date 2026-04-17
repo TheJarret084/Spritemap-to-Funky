@@ -1,0 +1,22 @@
+<project>
+    <!-- APP CONFIG-->
+    <app title="Spritemap to Funky" package="com.thejarretlabs.spritemaptofunky" version="1.0.0" company="JarretLabs" main="Main" />
+    <!-- version = 1.0.0-beta.5.Android || porque el paquete no aguanta-->
+    <window width="720" height="1280" fps="60" background="#111827" orientation="portrait" />
+
+    <!-- UI HAXE-->
+    <source path="src" />
+
+    <!-- IMAGENES Y VIDEOS (DE LA APP NADA DE SPRITEMAPS)-->
+    <assets path="assets" />
+
+    <!-- ICON-->
+    <icon path="assets/icons/iconOG.png" />
+
+    <!-- DEPENDENCIAS?-->
+    <haxelib name="openfl" />
+    <haxelib name="lime" />
+
+    <!-- .so (backend)-->
+    <ndll name="backend" />
+</project>

@@ -47,3 +47,10 @@ out*/
 
 # Logs
 *.log
+
+# Android compiladores
+
+/Android/androidBuild/app/bin
+/Android/androidBuild/app/bin/*
+/Android/androidBuild/cpp/build
+/Android/androidBuild/cpp/build/*
