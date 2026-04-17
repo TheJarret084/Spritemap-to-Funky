@@ -50,7 +50,8 @@ class Backend {
     }
 
     public static function discoverSamplePaths():ProjectPaths {
-        #if sys
+        #if linux
+        // Solo para pruebas en Linux, nunca en Android
         var candidates = [
             Path.join([Sys.getCwd(), "assets", "sample"]),
             Path.join([Sys.getCwd(), "bin", "assets", "sample"]),
@@ -58,7 +59,6 @@ class Backend {
             Path.join([Sys.getCwd(), "..", "..", "assets", "sample"]),
             Path.join([Sys.getCwd(), "..", "..", "..", "assets", "sample"])
         ];
-
         for (candidate in candidates) {
             var animationJson = Path.join([candidate, "Animation.json"]);
             var atlasJson = Path.join([candidate, "spritemap1.json"]);
@@ -73,7 +73,7 @@ class Backend {
             }
         }
         #end
-
+        // Nunca usar en Android ni en producción
         return null;
     }
 

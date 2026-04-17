@@ -12,6 +12,19 @@ import openfl.text.TextFieldType;
 import openfl.text.TextFormat;
 import Model.AnimationChoice;
 
+class AddFileButton extends Sprite {
+    public function new(onClick:Void->Void) {
+        super();
+        var icon = new openfl.display.Bitmap(openfl.Assets.getBitmapData("assets/buttons/addFilesExport.png"));
+        icon.width = 40;
+        icon.height = 28;
+        addChild(icon);
+        buttonMode = true;
+        useHandCursor = true;
+        addEventListener(MouseEvent.CLICK, function(_) onClick());
+    }
+}
+
 class CardSection extends Sprite {
     public var content:Sprite;
     public var innerWidth(default, null):Float = 0;
@@ -152,6 +165,7 @@ class UiButton extends Sprite {
 }
 
 class UiInput extends Sprite {
+    var browseButton:openfl.display.SimpleButton;
     public var text(get, set):String;
     public var field(default, null):TextField;
 
@@ -191,7 +205,47 @@ class UiInput extends Sprite {
         hintField.text = hint;
         addChild(hintField);
 
+        browseButton = makeBrowseButton();
+        addChild(browseButton);
         setWidth(320);
+    }
+    function makeBrowseButton():openfl.display.SimpleButton {
+        var icon = new openfl.display.Bitmap(openfl.Assets.getBitmapData("assets/buttons/saveFilesExport.png"));
+        icon.width = 40;
+        icon.height = 28;
+        var up = new Sprite();
+        up.addChild(icon);
+        var btn = new openfl.display.SimpleButton(up, up, up, up);
+        btn.x = widthValue - 44;
+        btn.y = 28;
+        btn.addEventListener(openfl.events.MouseEvent.CLICK, function(_) {
+            #if (sys || linux || windows || mac || android)
+            try {
+                var FileDialog = Type.resolveClass("lime.ui.FileDialog");
+                if (FileDialog != null) {
+                    var dialog = Type.createInstance(FileDialog, []);
+                    dialog.browse(function(path:String) {
+                        if (path != null && path != "") field.text = path;
+                    }, false);
+                } else {
+                    field.text = "[No file dialog disponible]";
+                }
+            } catch(e:Dynamic) {
+                field.text = "[No file dialog disponible]";
+            }
+            #else
+            // Fallback web
+            var input = new js.html.InputElement();
+            input.type = "file";
+            input.onchange = function(_) {
+                if (input.files.length > 0) {
+                    field.text = input.files[0].name;
+                }
+            };
+            input.click();
+            #end
+        });
+        return btn;
     }
 
     public function setWidth(width:Float):Void {
@@ -209,8 +263,17 @@ class UiInput extends Sprite {
 
         field.x = 12;
         field.y = 31;
-        field.width = width - 24;
+        field.width = width - 60;
         field.height = 24;
+        if (browseButton != null) {
+            browseButton.x = width - 44;
+            browseButton.y = 28;
+            if (browseButton.getChildAt(0) != null && Std.isOfType(browseButton.getChildAt(0), openfl.display.Bitmap)) {
+                var icon:openfl.display.Bitmap = cast((browseButton.upState, Sprite).getChildAt(0), openfl.display.Bitmap);
+                icon.width = 40;
+                icon.height = 28;
+            }
+        }
 
         hintField.x = 0;
         hintField.y = 71;
@@ -284,6 +347,9 @@ class UiToggle extends Sprite {
         box.graphics.endFill();
 
         if (checkedValue) {
+        import openfl.display.Bitmap;
+        import openfl.display.Sprite;
+
             box.graphics.lineStyle(3, 0x04130A);
             box.graphics.moveTo(8, 16);
             box.graphics.lineTo(13, 21);

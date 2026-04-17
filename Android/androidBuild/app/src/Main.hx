@@ -39,6 +39,9 @@ class Main extends Application {
 }
 
 class MainView extends Sprite {
+        #if (linux || windows || mac)
+        var zoomLevel:Float = 1.0;
+        #end
     var backgroundLayer:Shape;
     var accentLayer:Shape;
 
@@ -90,7 +93,28 @@ class MainView extends Sprite {
 
         if (stage != null) init();
         else addEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
+        #if (linux || windows || mac)
+        addEventListener(Event.ADDED_TO_STAGE, function(_) {
+            if (stage != null) {
+                stage.addEventListener(openfl.events.MouseEvent.MOUSE_WHEEL, onMouseWheelZoom);
+            }
+        });
+        #end
     }
+    #if (linux || windows || mac)
+    function onMouseWheelZoom(e:openfl.events.MouseEvent):Void {
+        if (openfl.Lib.current.window != null && openfl.Lib.current.window.displayState == "normal" && e.ctrlKey) {
+            var oldZoom = zoomLevel;
+            zoomLevel += e.delta > 0 ? 0.1 : -0.1;
+            if (zoomLevel < 0.3) zoomLevel = 0.3;
+            if (zoomLevel > 2.5) zoomLevel = 2.5;
+            if (zoomLevel != oldZoom) {
+                this.scaleX = zoomLevel;
+                this.scaleY = zoomLevel;
+            }
+        }
+    }
+    #end
 
     function onAddedToStage(_:Event):Void {
         removeEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
@@ -138,14 +162,26 @@ class MainView extends Sprite {
         titleField.mouseEnabled = false;
         titleField.text = "Spritemap to Funky";
         addChild(titleField);
-
+        /*
+        #if (linux || windows || mac)
+        // Permitir renombrar la ventana desde el código
+        try {
+            openfl.Lib.current.stage.window.title = "Spritemap to Funky";
+        } catch(e:Dynamic) {}
+        #end */
         subtitleField = new TextField();
         subtitleField.defaultTextFormat = new TextFormat("_sans", 15, 0x94A3B8);
         subtitleField.selectable = false;
         subtitleField.mouseEnabled = false;
         subtitleField.multiline = true;
         subtitleField.wordWrap = true;
-        subtitleField.text = "UI OpenFL/Haxe conectada a libbackend.so para listar animaciones y exportar sin rehacer el core en Haxe.";
+        #if android
+        subtitleField.text = "La mejor app!";
+        #elseif linux
+        subtitleField.text = "Test on linux or... what?";
+        #else
+        subtitleField.text = "La mejor app! - Test on linux or... what? - Plataforma desconocida.";
+        #end
         addChild(subtitleField);
 
         statusBadge = new Shape();
@@ -179,6 +215,27 @@ class MainView extends Sprite {
         animsJsonInput = new UiInput("anims.json (opcional)", "Lista estilo Psych/FNF con animations[].");
         outputDirInput = new UiInput("Salida", "Carpeta donde se escriben los PNG exportados.");
         filterInput = new UiInput("Filtro", "Filtra la lista por nombre o símbolo.");
+
+        // Forzar ruta de salida fija android
+        #if (android)
+        var forcedOutput = "~/storage/shared/Pictures/SpritemapToFunky/";
+        outputDirInput.text = forcedOutput;
+        outputDirInput.field.addEventListener(Event.CHANGE, function(_) {
+            if (outputDirInput.text != forcedOutput) {
+                outputDirInput.text = forcedOutput;
+            }
+        });
+        #end
+        // Forzar ruta de salida fija linux
+        #if (linux)
+        var forcedOutput = Path.join('${Dirname}/out/');
+        outputDirInput.text = forcedOutput;
+        outputDirInput.field.addEventListener(Event.CHANGE, function(_) {
+            if (outputDirInput.text != forcedOutput) {
+                outputDirInput.text = forcedOutput;
+            }
+        });
+        #end
 
         exportFramesToggle = new UiToggle("Exportar frames PNG", true);
 
@@ -318,7 +375,8 @@ class MainView extends Sprite {
         paths.atlasPng = atlasPngInput.text;
         paths.animsXml = animsXmlInput.text;
         paths.animsJson = animsJsonInput.text;
-        paths.outputDir = outputDirInput.text;
+        // Siempre forzar la ruta de salida
+        paths.outputDir = "~/storage/shared/Pictures/SpritemapToFunky/";
     }
 
     function refreshProject():Void {

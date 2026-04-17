@@ -1,6 +1,6 @@
 <project>
     <!-- APP CONFIG-->
-    <app title="Spritemap to Funky" package="com.thejarretlabs.spritemaptofunky" version="1.0.0" company="JarretLabs" main="Main" />
+    <app title="Spritemap to Funky" file="SpritemaptoFunky" package="com.thejarretlabs.spritemaptofunky" version="1.0.0" company="JarretLabs" main="Main" />
     <!-- version = 1.0.0-beta.5.Android || porque el paquete no aguanta-->
     <window width="720" height="1280" fps="60" background="#111827" orientation="portrait" />
 
