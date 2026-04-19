@@ -7,35 +7,45 @@
          company="JarretLabs"
          main="Main" />
 
-    <window width="720" height="1280"
-            fps="60"
-            background="#111827"
-            orientation="portrait" />
+    <!-- ========================= -->
+    <!-- WINDOWS / RESOLUCIÓN -->
+    <!-- ========================= -->
 
+    <!-- Linux -->
+    <if target="linux">
+        <window width="720" height="1280"
+                fps="30"
+                background="#111827"
+                resizable="true" />
+        
+        <icon path="assets/icons/icon.png" />
+    </if>
+
+    <!-- Android -->
+    <if target="android">
+        <window width="720" height="1280"
+                fps="60"
+                background="#111827"
+                orientation="portrait"
+                fullscreen="false" />
+<!--JARRET PORQUE EN FALSE????, porque la mierda se rompe en pantalla, usuario ignorante-->
+        
+        <icon path="assets/icons/iconOG.png" />
+    </if>
+
+    <!-- ========================= -->
     <!-- SOURCE -->
+    <!-- ========================= -->
+
     <source path="src" />
-
-    <!-- ASSETS -->
     <assets path="assets" />
-
-    <!-- ICON -->
-    <icon path="assets/icons/iconOG.png" />
 
     <!-- LIBS -->
     <haxelib name="openfl" />
     <haxelib name="lime" />
 
-    <!-- ========================= -->
-    <!-- BACKEND NATIVO -->
-    <!-- ========================= -->
-
-    <!-- Linux -->
-    <if target="linux">
-        <ndll name="backend" />
-    </if>
-
-    <!-- Android -->
-    <if target="android">
+    <!-- BACKEND -->
+    <if target="linux || android">
         <ndll name="backend" />
     </if>
 
