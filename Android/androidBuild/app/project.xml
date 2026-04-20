@@ -16,6 +16,8 @@
                 fullscreen="false" />
 
         <icon path="assets/icons/iconOG.png" />
+
+        <permission name="android.permission.READ_EXTERNAL_STORAGE" />
     </if>
 
     <source path="src" />
