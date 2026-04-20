@@ -196,7 +196,7 @@ public class AndroidFilePicker extends Extension {
             }
 
             InputStream input = new FileInputStream(source);
-            OutputStream output = activity.getContentResolver().openOutputStream(uri, "wt");
+            OutputStream output = activity.getContentResolver().openOutputStream(uri, "w");
             if (output == null) {
                 dispatchError("No pude escribir el archivo destino.");
                 return true;
