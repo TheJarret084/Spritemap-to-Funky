@@ -1,0 +1,15 @@
+abre el gestor de android, pero no agarra archivos, checar eso
+
+meter archivos dentro del storage de la app, procesar -> borrar -> exportar (usuario escoje) -> borrar todo el proceso
+
+splash WTF arreglar eso
+
+caso especial no ejecutass (video de caros debug no sirve xd)
+
+wows limpiar src/ y mover TODO menos main.hx porque es build de android solo ya xd
+
+que si compilan en otra plataforma o !android no corra 
+
+al momento de guardar exportarlo en .zip debes de mover toda una carpeta, mas simple
+
+agregar fade o algo al splash

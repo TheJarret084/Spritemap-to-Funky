@@ -24,6 +24,7 @@ Makefile
 *.lib
 *.pdb
 *.ilk
+/Android/androidBuild/app/build/commandlinetools-linux-11076708_latest.zip
 
 # User/IDE
 .vscode/
@@ -52,5 +53,9 @@ out*/
 
 /Android/androidBuild/app/bin
 /Android/androidBuild/app/bin/*
-/Android/androidBuild/cpp/build
-/Android/androidBuild/cpp/build/*
+# /Android/androidBuild/cpp/build
+# /Android/androidBuild/cpp/build/*
+
+# scripts drive, esto sera para test rapido
+/Android/androidBuild/scripts/
+/Android/androidBuild/scripts/*
