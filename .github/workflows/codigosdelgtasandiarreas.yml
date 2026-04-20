@@ -36,6 +36,7 @@ jobs:
 
       - name: Configurar lime para Android
         run: |
+          haxelib run lime setup android
           haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_ROOT
           haxelib run lime config JAVA_HOME $JAVA_HOME
