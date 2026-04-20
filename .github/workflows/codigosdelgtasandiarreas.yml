@@ -1,0 +1,54 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - "v-android*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.4
+
+      - name: Instalar librerías Haxe
+        run: |
+          haxelib install lime
+          haxelib install openfl
+          haxelib install flixel
+          haxelib run lime setup
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configurar lime para Android
+        run: |
+          haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_ROOT
+          haxelib run lime config JAVA_HOME $JAVA_HOME
+
+      - name: Build normal release
+        run: bash Android/androidBuild/build.sh normal
+
+      - name: Build caros debug edition
+        run: bash Android/androidBuild/build.sh caros
+
+      - name: Subir APKs al Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Android/androidBuild/dist/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
