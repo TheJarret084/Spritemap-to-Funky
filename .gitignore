@@ -55,6 +55,7 @@ out*/
 /Android/androidBuild/app/bin/*
 # /Android/androidBuild/cpp/build
 # /Android/androidBuild/cpp/build/*
+/Android/androidBuild/build.sh
 
 # scripts drive, esto sera para test rapido
 /Android/androidBuild/scripts/
