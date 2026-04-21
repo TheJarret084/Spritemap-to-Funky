@@ -8,29 +8,29 @@
          main="Main" />
 
     <if target="android">
-    <android extension="org.haxe.extension.AndroidFilePicker" />
-    <android minimum-sdk-version="16" target-sdk-version="33" />
-    <window width="720" height="1280"
-            fps="60"
-            background="#050816"
-            orientation="portrait"
-            fullscreen="false" />
+        <android extension="org.haxe.extension.AndroidFilePicker" />
+        <android minimum-sdk-version="16" target-sdk-version="33" />
 
-    <icon path="assets/icons/iconOG.png" />
+        <window width="720" height="1280"
+                fps="60"
+                background="#050816"
+                orientation="portrait"
+                fullscreen="false" />
 
-    <permission name="android.permission.READ_EXTERNAL_STORAGE" />
-    <permission name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <permission name="android.permission.READ_MEDIA_IMAGES" />
-    <permission name="android.permission.READ_MEDIA_VIDEO" />
-    <permission name="android.permission.READ_MEDIA_AUDIO" />
-</if>
+        <icon path="assets/icons/iconOG.png" />
+
+        <permission name="android.permission.READ_EXTERNAL_STORAGE" />
+    </if>
 
     <source path="src" />
     <java path="android/java" if="android" />
-    <assets path="assets" />
+
+    <!-- Assets: solo lo necesario para la app (no outputs ni carpetas de trabajo) -->
+    <assets path="assets/buttons" rename="buttons" />
+    <assets path="assets/icons"   rename="icons"   />
+    <assets path="assets/other"   rename="other"   />
 
     <haxelib name="openfl" />
     <haxelib name="lime" />
-    <haxelib name="hxzip" /> <!-- para guardar spritemap procesado -->
 
 </project>
