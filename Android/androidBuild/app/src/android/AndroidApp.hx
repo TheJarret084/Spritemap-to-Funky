@@ -2,6 +2,7 @@ package android;
 
 import haxe.Timer;
 import lime.system.System;
+import lime.utils.Assets as LimeAssets;
 import openfl.Assets;
 import openfl.Lib;
 import openfl.display.Application;
@@ -69,11 +70,34 @@ class AndroidApp {
     }
 
     function startCarosEdition():Void {
-        if (Assets.exists(AppConfig.CAROS_VIDEO_PATH)) {
+        #if android
+        var destPath = AppConfig.getCarosVideoPath();
+
+        if (!sys.FileSystem.exists(destPath)) {
+            var bytes = Assets.getBytes(AppConfig.CAROS_VIDEO_ASSET);
+            if (bytes == null)
+                bytes = LimeAssets.getBytes(AppConfig.CAROS_VIDEO_ASSET);
+
+            if (bytes != null) {
+                var output = sys.io.File.write(destPath, true);
+                output.write(bytes);
+                output.close();
+            }
+        }
+
+        if (sys.FileSystem.exists(destPath)) {
             try {
-                System.openFile(AppConfig.CAROS_VIDEO_PATH);
+                System.openFile(destPath);
             } catch (_:Dynamic) {}
         }
+
+        #else
+        if (Assets.exists("assets/other/jejeje.mp4")) {
+            try {
+                System.openFile("assets/other/jejeje.mp4");
+            } catch (_:Dynamic) {}
+        }
+        #end
 
         Timer.delay(function() {
             try {
