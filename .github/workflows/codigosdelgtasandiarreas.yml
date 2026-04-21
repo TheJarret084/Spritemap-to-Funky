@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          lfs: true        # Por si usas Git LFS para archivos grandes
+          fetch-depth: 0   # Trae todo el historial y archivos
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -34,7 +37,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Instalar NDK específico
+      - name: Instalar NDK r21e
         run: |
           echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "ndk;21.4.7075529"
 
@@ -44,6 +47,17 @@ jobs:
           haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_SDK_ROOT/ndk/21.4.7075529
           haxelib run lime config JAVA_HOME $JAVA_HOME
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/21.4.7075529" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/21.4.7075529" >> $GITHUB_ENV
+
+      - name: Verificar NDK y assets
+        run: |
+          echo "NDK en uso: $ANDROID_NDK_ROOT"
+          ls $ANDROID_SDK_ROOT/ndk/
+          echo "--- Assets presentes ---"
+          find Android/androidBuild/app/assets -type f 2>/dev/null || echo "assets aun no generados (normal)"
+          echo "--- Icono presente ---"
+          ls Android/androidBuild/app/assets/icons/ 2>/dev/null || echo "icono no encontrado aun"
 
       - name: Build normal release
         run: bash Android/androidBuild/build.sh normal
