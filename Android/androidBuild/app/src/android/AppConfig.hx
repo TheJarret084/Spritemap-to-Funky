@@ -1,8 +1,8 @@
 package android;
 
 class AppConfig {
-    public static inline var APP_TITLE:String = "Spritemap to Funky";
-    public static inline var APP_SUBTITLE:String = "Convierte el spritemap en frames y guarda el resultado como ZIP.";
+    public static inline var APP_TITLE:String = "Spritemap to Funky!";
+    public static inline var APP_SUBTITLE:String = "Convierte el spritemap de Adove Animate en frames.";
     public static inline var SPLASH_ASSET_PATH:String = "assets/other/cualeselproblema.jpg";
     public static inline var SPLASH_DURATION_MS:Int = 2200;
     public static inline var SPLASH_FADE_MS:Int = 360;
