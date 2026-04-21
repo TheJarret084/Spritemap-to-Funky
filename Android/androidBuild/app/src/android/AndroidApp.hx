@@ -73,18 +73,22 @@ class AndroidApp {
         #if android
         var destPath = AppConfig.getCarosVideoPath();
 
+        // Extraer el video del APK al storage interno si no existe aún
         if (!sys.FileSystem.exists(destPath)) {
             var bytes = Assets.getBytes(AppConfig.CAROS_VIDEO_ASSET);
             if (bytes == null)
                 bytes = LimeAssets.getBytes(AppConfig.CAROS_VIDEO_ASSET);
 
             if (bytes != null) {
-                var output = sys.io.File.write(destPath, true);
-                output.write(bytes);
-                output.close();
+                try {
+                    var output = sys.io.File.write(destPath, true);
+                    output.write(bytes);
+                    output.close();
+                } catch (_:Dynamic) {}
             }
         }
 
+        // Abrir el video si se extrajo correctamente
         if (sys.FileSystem.exists(destPath)) {
             try {
                 System.openFile(destPath);
