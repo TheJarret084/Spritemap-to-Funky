@@ -8,18 +8,22 @@
          main="Main" />
 
     <if target="android">
-        <android extension="org.haxe.extension.AndroidFilePicker" />
-        <android minimum-sdk-version="16" target-sdk-version="33" />
-        <window width="720" height="1280"
-                fps="60"
-                background="#050816"
-                orientation="portrait"
-                fullscreen="false" />
+    <android extension="org.haxe.extension.AndroidFilePicker" />
+    <android minimum-sdk-version="16" target-sdk-version="33" />
+    <window width="720" height="1280"
+            fps="60"
+            background="#050816"
+            orientation="portrait"
+            fullscreen="false" />
 
-        <icon path="assets/icons/iconOG.png" />
+    <icon path="assets/icons/iconOG.png" />
 
-        <permission name="android.permission.READ_EXTERNAL_STORAGE" />
-    </if>
+    <permission name="android.permission.READ_EXTERNAL_STORAGE" />
+    <permission name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <permission name="android.permission.READ_MEDIA_IMAGES" />
+    <permission name="android.permission.READ_MEDIA_VIDEO" />
+    <permission name="android.permission.READ_MEDIA_AUDIO" />
+</if>
 
     <source path="src" />
     <java path="android/java" if="android" />
@@ -27,5 +31,6 @@
 
     <haxelib name="openfl" />
     <haxelib name="lime" />
+    <haxelib name="hxzip" /> <!-- para guardar spritemap procesado -->
 
 </project>
