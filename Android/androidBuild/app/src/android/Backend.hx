@@ -47,8 +47,26 @@ class Backend {
         #end
     }
 
+    /** Directorio temporal para frames procesados — siempre en storage interno */
     public static function getProcessingOutputDir():String {
-        return Path.join([getWorkspaceRoot(), AppConfig.PROCESSED_FOLDER]);
+        #if android
+        var dir = AppConfig.getProcessedDir();
+        Tools.ensureDirectory(dir);
+        return dir;
+        #else
+        return Path.join([getWorkspaceRoot(), "processed"]);
+        #end
+    }
+
+    /** Directorio de exports finales — en Android/media para que el usuario lo vea */
+    static function getExportsDir():String {
+        #if android
+        var dir = AppConfig.getExportsDir();
+        Tools.ensureDirectory(dir);
+        return dir;
+        #else
+        return Path.join([getWorkspaceRoot(), "exports"]);
+        #end
     }
 
     public static function loadProject(paths:ProjectPaths):LoadResult {
@@ -87,10 +105,6 @@ class Backend {
         }
 
         return result;
-    }
-
-    static function getExportsDir():String {
-        return Path.join([getWorkspaceRoot(), AppConfig.EXPORTS_FOLDER]);
     }
 
     static function callDescribe(paths:ProjectPaths):Dynamic {
