@@ -66,37 +66,28 @@ class Exporter {
         var animsXml = Tools.stringField(request, "animsXml", "");
         var animsJson = Tools.stringField(request, "animsJson", "");
         var outputDir = Tools.stringField(request, "outputDir", "");
-        var exportFrames = Tools.boolField(request, "exportFrames", true);
-        var exportAse = Tools.boolField(request, "exportAse", false);
-        var asepritePath = Tools.stringField(request, "asepritePath", "aseprite");
 
-        if (!Tools.fileExists(animationJson)) {
+        if (!Tools.fileExists(animationJson))
             return Tools.makeError("Falta Animation.json.");
-        }
-        if (!Tools.fileExists(atlasJson)) {
+        if (!Tools.fileExists(atlasJson))
             return Tools.makeError("Falta spritemap1.json.");
-        }
-        if (!exportFrames && !exportAse) {
-            return Tools.makeError("No hay ningún formato de export activo.");
-        }
 
         var selected = loadSelectedItems(request);
-        if (selected.length == 0) {
+        if (selected.length == 0)
             return Tools.makeError("Selecciona al menos una animación.");
-        }
 
         var animationData:Dynamic;
         try {
             animationData = Json.parse(Tools.readFileStripBom(animationJson));
         } catch (error:Dynamic) {
-            return Tools.makeError("error leyendo/parsing Animation.json (" + animationJson + "): " + Std.string(error));
+            return Tools.makeError("error leyendo Animation.json: " + Std.string(error));
         }
 
         var atlasData:Dynamic;
         try {
             atlasData = Json.parse(Tools.readFileStripBom(atlasJson));
         } catch (error:Dynamic) {
-            return Tools.makeError("error leyendo/parsing spritemap1.json (" + atlasJson + "): " + Std.string(error));
+            return Tools.makeError("error leyendo spritemap1.json: " + Std.string(error));
         }
 
         var atlasPngPath = Tools.resolveAtlasPngPath(atlasJson, atlasPng);
@@ -118,12 +109,16 @@ class Exporter {
 
         var progressCurrent = 0;
         var progressTotal = 0;
-        for (job in jobs) {
-            progressTotal += countValidFrames(job);
-        }
+        for (job in jobs) progressTotal += countValidFrames(job);
+        for (job in jobs) progressCurrent += exportSymbol(job, finalOutput, symbols, atlas, atlasImage, logs);
 
-        for (job in jobs) {
-            progressCurrent += exportSymbol(job, finalOutput, symbols, atlas, atlasImage, exportFrames, exportAse, asepritePath, logs);
+        // Comprimir output en ZIP
+        var zipPath = finalOutput + ".zip";
+        try {
+            ZipHelper.compressFolder(finalOutput, zipPath);
+            logs.push("ZIP guardado en: " + zipPath);
+        } catch (error:Dynamic) {
+            logs.push("Error al crear ZIP: " + Std.string(error));
         }
 
         logs.push("listo. salida en: " + finalOutput);
@@ -131,6 +126,7 @@ class Exporter {
         return {
             ok: true,
             outputDir: finalOutput,
+            zipPath: zipPath,
             filesWritten: progressCurrent,
             totalFrames: progressTotal,
             errorCode: 0,
@@ -151,8 +147,7 @@ class Exporter {
             if (Tools.isBlank(animName) || Tools.isBlank(symbolName)) continue;
 
             var indices:Array<Int> = [];
-            var rawIndices = Tools.field(animation, "indices");
-            for (value in Tools.asArray(rawIndices)) {
+            for (value in Tools.asArray(Tools.field(animation, "indices"))) {
                 if (value != null) indices.push(Std.int(value));
             }
 
@@ -168,16 +163,14 @@ class Exporter {
 
         var main = Tools.field(data, "AN");
         var mainName = main != null ? Tools.stringField(main, "N", "main") : "main";
-        if (!Tools.isBlank(mainName)) {
+        if (!Tools.isBlank(mainName))
             out.push(new AnimDef(mainName, mainName, []));
-        }
 
         var symbols = Tools.field(data, "SD");
         for (symbol in Tools.arrayField(symbols, "S")) {
             var symbolName = Tools.stringField(symbol, "SN", "");
-            if (!Tools.isBlank(symbolName)) {
+            if (!Tools.isBlank(symbolName))
                 out.push(new AnimDef(symbolName, symbolName, []));
-            }
         }
 
         return out;
@@ -217,9 +210,7 @@ class Exporter {
             sprite.rotated = Tools.boolField(spriteJson, "rotated", false);
 
             var name = Tools.stringField(spriteJson, "name", "");
-            if (!Tools.isBlank(name)) {
-                atlas.set(name, sprite);
-            }
+            if (!Tools.isBlank(name)) atlas.set(name, sprite);
         }
 
         return atlas;
@@ -232,12 +223,10 @@ class Exporter {
         for (symbolJson in Tools.arrayField(symbolsRoot, "S")) {
             var symbol = new SymbolDef();
             symbol.name = Tools.stringField(symbolJson, "SN", "");
-            if (Tools.field(symbolJson, "TL") != null) {
+            if (Tools.field(symbolJson, "TL") != null)
                 symbol.timeline = Parser.parseTimeline(Tools.field(symbolJson, "TL"));
-            }
-            if (!Tools.isBlank(symbol.name)) {
+            if (!Tools.isBlank(symbol.name))
                 symbols.set(symbol.name, symbol);
-            }
         }
 
         return symbols;
@@ -248,9 +237,8 @@ class Exporter {
         var animation = Tools.field(data, "AN");
 
         symbol.name = animation != null ? Tools.stringField(animation, "N", "main") : "main";
-        if (animation != null && Tools.field(animation, "TL") != null) {
+        if (animation != null && Tools.field(animation, "TL") != null)
             symbol.timeline = Parser.parseTimeline(Tools.field(animation, "TL"));
-        }
 
         return symbol;
     }
@@ -271,9 +259,8 @@ class Exporter {
             }
 
             var fallback = symbols.get(definition.name);
-            if (fallback != null) {
+            if (fallback != null)
                 jobs.push(new ExportJob(fallback, definition.sourceAnim, definition.indices));
-            }
         }
 
         return jobs;
@@ -296,9 +283,6 @@ class Exporter {
         symbols:Map<String, SymbolDef>,
         atlas:Map<String, AtlasSpriteDef>,
         atlasImage:RgbaImage,
-        exportFrames:Bool,
-        exportAse:Bool,
-        asepritePath:String,
         logs:Array<String>
     ):Int {
         var symbol = job.symbol;
@@ -310,25 +294,21 @@ class Exporter {
 
         var frameList:Array<Int> = [];
         if (job.frames.length == 0) {
-            for (frame in 0...symbol.timeline.totalFrames) {
-                frameList.push(frame);
-            }
+            for (frame in 0...symbol.timeline.totalFrames) frameList.push(frame);
         } else {
             frameList = job.frames.copy();
         }
 
         var validFrames:Array<Int> = [];
         for (frame in frameList) {
-            if (frame >= 0 && frame < symbol.timeline.totalFrames) {
+            if (frame >= 0 && frame < symbol.timeline.totalFrames)
                 validFrames.push(frame);
-            }
         }
 
         var bounds = new Bounds();
         var identity = new Transform();
-        for (frame in validFrames) {
+        for (frame in validFrames)
             Renderer.accumulateBoundsSymbol(symbol, frame, identity, symbols, atlas, bounds);
-        }
 
         if (!bounds.initialized) return 0;
 
@@ -340,171 +320,18 @@ class Exporter {
         offset.tx = -bounds.minx;
         offset.ty = -bounds.miny;
 
-        var layerOrder:Array<String> = [];
-        var rawToSafe = new Map<String, String>();
-        var usedSafe = new Map<String, Bool>();
-
-        if (exportAse) {
-            for (frame in validFrames) {
-                var occ = new Map<String, Int>();
-                Renderer.visitElements(symbol, frame, offset, "", occ, symbols, atlas, function(_, _, raw) {
-                    registerLayer(raw, layerOrder, rawToSafe, usedSafe);
-                });
-            }
-        }
-
-        var layersDir = Path.join([animDir, "_layers"]);
-        if (exportAse) Tools.ensureDirectory(layersDir);
-
         var written = 0;
         var frameOut = 0;
         for (frame in validFrames) {
             var frameIndex = frameOut++;
+            var canvas = RgbaImage.create(canvasWidth, canvasHeight);
+            Renderer.renderSymbol(symbol, frame, offset, symbols, atlas, atlasImage, canvas);
 
-            if (exportFrames) {
-                var canvas = RgbaImage.create(canvasWidth, canvasHeight);
-                Renderer.renderSymbol(symbol, frame, offset, symbols, atlas, atlasImage, canvas);
-
-                var fileName = safeName + "_" + Tools.formatFrameIndex(frameIndex) + ".png";
-                canvas.writePng(Path.join([animDir, fileName]));
-            }
-
-            if (exportAse) {
-                var layerImages = new Map<String, RgbaImage>();
-                var occ = new Map<String, Int>();
-
-                Renderer.visitElements(symbol, frame, offset, "", occ, symbols, atlas, function(sprite, transform, raw) {
-                    var layerName = resolveLayerName(raw, layerOrder, rawToSafe, usedSafe);
-                    var image = layerImages.get(layerName);
-                    if (image == null) {
-                        image = RgbaImage.create(canvasWidth, canvasHeight);
-                        layerImages.set(layerName, image);
-                    }
-                    Renderer.drawSpriteAffine(atlasImage, sprite, transform, image);
-                });
-
-                for (layerName in layerOrder) {
-                    var image = layerImages.get(layerName);
-                    if (image == null) image = RgbaImage.create(canvasWidth, canvasHeight);
-
-                    var layerDir = Path.join([layersDir, layerName]);
-                    Tools.ensureDirectory(layerDir);
-                    var layerFile = layerName + "_" + Tools.formatFrameIndex(frameIndex) + ".png";
-                    image.writePng(Path.join([layerDir, layerFile]));
-                }
-            }
-
+            var fileName = safeName + "_" + Tools.formatFrameIndex(frameIndex) + ".png";
+            canvas.writePng(Path.join([animDir, fileName]));
             written++;
         }
 
-        if (exportAse && frameOut > 0 && layerOrder.length > 0) {
-            runAsepriteExport(layersDir, layerOrder, frameOut, Path.join([outDir, safeName + ".ase"]), asepritePath, logs);
-        }
-
         return written;
-    }
-
-    static function registerLayer(
-        raw:String,
-        layerOrder:Array<String>,
-        rawToSafe:Map<String, String>,
-        usedSafe:Map<String, Bool>
-    ):String {
-        if (rawToSafe.exists(raw)) return rawToSafe.get(raw);
-
-        var base = Tools.sanitizeName(raw);
-        if (Tools.isBlank(base)) base = "layer";
-
-        var name = base;
-        var suffix = 1;
-        while (usedSafe.exists(name)) {
-            name = base + "_" + suffix++;
-        }
-
-        rawToSafe.set(raw, name);
-        usedSafe.set(name, true);
-        layerOrder.push(name);
-        return name;
-    }
-
-    static function resolveLayerName(
-        raw:String,
-        layerOrder:Array<String>,
-        rawToSafe:Map<String, String>,
-        usedSafe:Map<String, Bool>
-    ):String {
-        return rawToSafe.exists(raw) ? rawToSafe.get(raw) : registerLayer(raw, layerOrder, rawToSafe, usedSafe);
-    }
-
-    static function runAsepriteExport(
-        layersDir:String,
-        layerNames:Array<String>,
-        frameCount:Int,
-        outAse:String,
-        asepritePath:String,
-        logs:Array<String>
-    ):Void {
-        if (layerNames.length == 0 || frameCount <= 0) return;
-
-        #if android
-        logs.push("Export .ase no está disponible en Android.");
-        return;
-        #else
-        var scriptPath = Path.join([layersDir, "_build_ase.lua"]);
-        var lua = new StringBuf();
-        lua.add('local out_path = "' + Tools.luaEscape(Tools.toLuaPath(outAse)) + '"\n');
-        lua.add('local layers_dir = "' + Tools.luaEscape(Tools.toLuaPath(layersDir)) + '"\n');
-        lua.add("local layer_names = {");
-        for (i in 0...layerNames.length) {
-            if (i > 0) lua.add(",");
-            lua.add('"' + Tools.luaEscape(layerNames[i]) + '"');
-        }
-        lua.add("}\n");
-        lua.add("local frame_count = " + frameCount + "\n");
-        lua.add("local function img_path(layer, idx)\n");
-        lua.add("  return layers_dir .. '/' .. layer .. '/' .. layer .. '_' .. string.format('%04d', idx) .. '.png'\n");
-        lua.add("end\n");
-        lua.add("local first_img = Image{ fromFile = img_path(layer_names[1], 0) }\n");
-        lua.add("local spr = Sprite(first_img.width, first_img.height)\n");
-        lua.add("for i=2,frame_count do spr:newFrame() end\n");
-        lua.add("if #spr.layers > 0 then spr:deleteLayer(spr.layers[1]) end\n");
-        lua.add("for _, name in ipairs(layer_names) do\n");
-        lua.add("  local layer = spr:newLayer()\n");
-        lua.add("  layer.name = name\n");
-        lua.add("  for i=0,frame_count-1 do\n");
-        lua.add("    local img = Image{ fromFile = img_path(name, i) }\n");
-        lua.add("    spr:newCel(layer, spr.frames[i+1], img, Point(0,0))\n");
-        lua.add("  end\n");
-        lua.add("end\n");
-        lua.add("spr:saveAs(out_path)\n");
-
-        try {
-            File.saveContent(scriptPath, lua.toString());
-        } catch (error:Dynamic) {
-            logs.push("no pude escribir script lua: " + scriptPath + " (" + Std.string(error) + ")");
-            return;
-        }
-
-        if (FileSystem.exists(outAse) && !FileSystem.isDirectory(outAse)) {
-            try {
-                FileSystem.deleteFile(outAse);
-            } catch (_:Dynamic) {}
-        }
-
-        var exe = Tools.isBlank(asepritePath) ? "aseprite" : asepritePath;
-        var code = Sys.command(exe, ["-b", "--script", scriptPath]);
-
-        try {
-            if (FileSystem.exists(scriptPath) && !FileSystem.isDirectory(scriptPath)) {
-                FileSystem.deleteFile(scriptPath);
-            }
-        } catch (_:Dynamic) {}
-
-        if (code != 0) {
-            logs.push("comando fallo (" + code + "): " + exe + " -b --script " + scriptPath);
-        } else {
-            logs.push("aseprite: " + outAse);
-        }
-        #end
     }
 }
