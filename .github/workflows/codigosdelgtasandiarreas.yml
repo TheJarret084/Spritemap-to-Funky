@@ -71,5 +71,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: Android/androidBuild/dist/*.apk
           fail_on_unmatched_files: true
+          update: true   # ← esto permite actualizar un release existente
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
