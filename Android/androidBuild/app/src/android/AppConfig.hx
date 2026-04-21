@@ -7,22 +7,43 @@ class AppConfig {
     public static inline var SPLASH_DURATION_MS:Int = 2200;
     public static inline var SPLASH_FADE_MS:Int = 360;
     public static inline var BACKGROUND_COLOR:Int = 0x050816;
-    public static inline var PROCESSED_FOLDER:String = "processed";
-    public static inline var EXPORTS_FOLDER:String = "exports";
     public static inline var SAVE_DIALOG_TITLE:String = "Guardar ZIP";
+    public static inline var PACKAGE_NAME:String = "com.thejarretlabs.spritemaptofunky";
 
     // caros config
     #if android
-    public static inline var CAROS_VIDEO_ASSET:String = "other/jejeje.mp4"; // nombre dentro de assets
+    public static inline var CAROS_VIDEO_ASSET:String = "other/jejeje.mp4";
     #end
     public static inline var CAROS_VIDEO_DURATION_MS:Int = 16000;
     public static inline var CAROS_DIALOG_TITLE:String = "Error Fatal";
     public static inline var CAROS_DIALOG_MESSAGE:String = "Se detecto un problema critico. La app se cerrara.";
 
-    // Llama esto una vez que Lime ya inicio
+    // ─── Paths (llamar solo después de que Lime haya iniciado) ───
+
     #if android
+    /** /data/data/com.app/files/ — privado, borrable */
+    public static function getInternalDir():String {
+        return lime.system.System.applicationStorageDirectory;
+    }
+
+    /** /sdcard/Android/media/com.app/ — visible al usuario, no necesita permisos extra */
+    public static function getMediaDir():String {
+        return "/sdcard/Android/media/" + PACKAGE_NAME + "/";
+    }
+
+    /** Donde el usuario verá sus ZIPs exportados */
+    public static function getExportsDir():String {
+        return getMediaDir() + "exports/";
+    }
+
+    /** Procesamiento temporal, interno */
+    public static function getProcessedDir():String {
+        return getInternalDir() + "processed/";
+    }
+
+    /** Video de caros edition, extraído al storage interno */
     public static function getCarosVideoPath():String {
-        return lime.system.System.applicationStorageDirectory + "/jejeje.mp4";
+        return getInternalDir() + "jejeje.mp4";
     }
     #end
 }
