@@ -13,8 +13,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          lfs: true        # Por si usas Git LFS para archivos grandes
-          fetch-depth: 0   # Trae todo el historial y archivos
+          lfs: true
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -68,6 +68,8 @@ jobs:
       - name: Subir APKs al Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: Android/androidBuild/dist/*.apk
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
