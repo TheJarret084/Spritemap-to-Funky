@@ -9,6 +9,7 @@
 
     <if target="android">
         <android extension="org.haxe.extension.AndroidFilePicker" />
+        <android minimum-sdk-version="16" target-sdk-version="33" />
         <window width="720" height="1280"
                 fps="60"
                 background="#050816"
