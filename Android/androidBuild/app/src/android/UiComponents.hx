@@ -211,7 +211,7 @@ class UiInput extends Sprite {
     }
 
     function makeBrowseButton():openfl.display.SimpleButton {
-        var icon = new openfl.display.Bitmap(openfl.Assets.getBitmapData("assets/buttons/addFilesExport.png"));
+        var icon = new openfl.display.Bitmap(openfl.Assets.getBitmapData(AppConfig.resolveAssetPath(AppConfig.BROWSE_ICON_ASSET)));
         icon.width = 40;
         icon.height = 28;
         var up = new Sprite();

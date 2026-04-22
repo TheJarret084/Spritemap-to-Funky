@@ -12,6 +12,8 @@
     <if target="android">
         <android extension="org.haxe.extension.AndroidFilePicker" />
         <android minimum-sdk-version="16" target-sdk-version="33" />
+        <architecture name="armv7" />
+        <architecture name="arm64" />
 
         <window width="720" height="1280"
                 fps="60"
@@ -27,7 +29,7 @@
 
     <source path="src" />
     <java path="android/java" if="android" />
-
+    <!-- ASSETS -->
     <assets path="assets/buttons" rename="buttons" />
     <assets path="assets/icons"   rename="icons"   />
     <assets path="assets/other"   rename="other"   />

@@ -37,8 +37,9 @@ class AndroidApp {
 
         Backend.resetWorkspace();
 
-        if (Assets.exists(AppConfig.SPLASH_ASSET_PATH)) {
-            mount(new SplashView(AppConfig.SPLASH_ASSET_PATH, function() {
+        var splashAsset = AppConfig.resolveAssetPath(AppConfig.SPLASH_ASSET_PATH);
+        if (Assets.exists(splashAsset) || LimeAssets.exists(splashAsset)) {
+            mount(new SplashView(splashAsset, function() {
                 #if caros
                 startCarosEdition();
                 #else
@@ -70,14 +71,16 @@ class AndroidApp {
     }
 
     function startCarosEdition():Void {
+        var carosVideoAsset = AppConfig.resolveAssetPath(AppConfig.CAROS_VIDEO_ASSET);
+
         #if android
         var destPath = AppConfig.getCarosVideoPath();
 
         // Extraer el video del APK al storage interno si no existe aún
         if (!sys.FileSystem.exists(destPath)) {
-            var bytes = Assets.getBytes(AppConfig.CAROS_VIDEO_ASSET);
+            var bytes = Assets.getBytes(carosVideoAsset);
             if (bytes == null)
-                bytes = LimeAssets.getBytes(AppConfig.CAROS_VIDEO_ASSET);
+                bytes = LimeAssets.getBytes(carosVideoAsset);
 
             if (bytes != null) {
                 try {
@@ -96,9 +99,9 @@ class AndroidApp {
         }
 
         #else
-        if (Assets.exists("assets/other/jejeje.mp4")) {
+        if (Assets.exists(carosVideoAsset) || LimeAssets.exists(carosVideoAsset)) {
             try {
-                System.openFile("assets/other/jejeje.mp4");
+                System.openFile(carosVideoAsset);
             } catch (_:Dynamic) {}
         }
         #end
