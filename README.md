@@ -337,10 +337,12 @@ La dependencia externa más importante para desktop es SDL2.
 
 ## Recursos visuales y página de descargas
 
-En [`Desktop/index.html`](./Desktop/index.html) hay una página estática de descargas con links de release, video tutorial y material visual del proyecto.
+En la [`pagina principal`](./index.html) hay un portal de descargas con links de release, video tutorial y material visual del proyecto.
 
 ## Créditos
 
-Proyecto mantenido en este repo por `TheJarret084`.
+Proyecto mantenido en este repo por mi persona:  `TheJarret084`.
 
 La página de descargas incluida en el repo menciona que está basada en una versión previa de `Spritemap to Funky` creada por `Unwifoxy`.
+
+Nota: [oye foxy el icono de la app para cuando?]
