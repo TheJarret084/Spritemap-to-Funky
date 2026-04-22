@@ -1,0 +1,519 @@
+{
+	"animations": [
+		{
+			"offsets": [0, 0],
+			"indices": [],
+			"fps": 24,
+			"anim": "idle",
+			"loop": false,
+			"name": "bf idle normal"
+		},
+		{
+			"offsets": [0, 0],
+			"indices": [9,10,11,12],
+			"fps": 24,
+			"anim": "idle-loop",
+			"loop": true,
+			"name": "bf idle normal"
+		},
+		{
+			"loop": false,
+			"offsets": [35, -12],
+			"anim": "danceLeft-amped",
+			"fps": 24,
+			"name": "bf idle amped",
+			"indices": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+		},
+		{
+			"loop": false,
+			"offsets": [0, 0],
+			"anim": "danceMid-amped",
+			"fps": 24,
+			"name": "bf idle amped",
+			"indices": [9, 10, 11, 12, 13, 14, 14, 14, 14, 14, 14, 14, 14]
+		},
+		{
+			"loop": false,
+			"offsets": [35, -12],
+			"anim": "danceRight-amped",
+			"fps": 24,
+			"name": "bf idle amped",
+			"indices": [15, 16, 17, 18, 19, 20, 21, 22, 23]
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-bada",
+			"indices": [],
+			"name": "bf left bad a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-bada",
+			"indices": [],
+			"name": "bf down bad a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-bada",
+			"indices": [],
+			"name": "bf up bad a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-bada",
+			"indices": [],
+			"name": "bf right bad a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-gooda",
+			"indices": [],
+			"name": "bf left a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-gooda",
+			"indices": [],
+			"name": "bf down a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-gooda",
+			"indices": [],
+			"name": "bf up a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-gooda",
+			"indices": [],
+			"name": "bf right a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-sicka",
+			"indices": [],
+			"name": "bf left sick a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-sicka",
+			"indices": [],
+			"name": "bf down sick a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-sicka",
+			"indices": [],
+			"name": "bf up sick a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-sicka",
+			"indices": [],
+			"name": "bf right sick a"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-bade",
+			"indices": [],
+			"name": "bf left bad e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-bade",
+			"indices": [],
+			"name": "bf down bad e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-bade",
+			"indices": [],
+			"name": "bf up bad e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-bade",
+			"indices": [],
+			"name": "bf right bad e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-goode",
+			"indices": [],
+			"name": "bf left e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-goode",
+			"indices": [],
+			"name": "bf down e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-goode",
+			"indices": [],
+			"name": "bf up e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-goode",
+			"indices": [],
+			"name": "bf right e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-sicke",
+			"indices": [],
+			"name": "bf left sick e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-sicke",
+			"indices": [],
+			"name": "bf down sick e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-sicke",
+			"indices": [],
+			"name": "bf up sick e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-sicke",
+			"indices": [],
+			"name": "bf right sick e"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-bado",
+			"indices": [],
+			"name": "bf left bad o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-bado",
+			"indices": [],
+			"name": "bf down bad o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-bado",
+			"indices": [],
+			"name": "bf up bad o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-bado",
+			"indices": [],
+			"name": "bf right bad o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-goodo",
+			"indices": [],
+			"name": "bf left o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-goodo",
+			"indices": [],
+			"name": "bf down o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-goodo",
+			"indices": [],
+			"name": "bf up o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-goodo",
+			"indices": [],
+			"name": "bf right o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-sicko",
+			"indices": [],
+			"name": "bf left sick o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-sicko",
+			"indices": [],
+			"name": "bf down sick o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-sicko",
+			"indices": [],
+			"name": "bf up sick o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-sicko",
+			"indices": [],
+			"name": "bf right sick o"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFT-beatbox",
+			"indices": [],
+			"name": "bf left beatbox"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWN-beatbox",
+			"indices": [],
+			"name": "bf down beatbox"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUP-beatbox",
+			"indices": [],
+			"name": "bf up beatbox"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHT-beatbox",
+			"indices": [],
+			"name": "bf right beatbox"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singLEFTmiss",
+			"indices": [],
+			"name": "bf left miss"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singDOWNmiss",
+			"indices": [],
+			"name": "bf down miss"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singUPmiss",
+			"indices": [],
+			"name": "bf up miss"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "singRIGHTmiss",
+			"indices": [],
+			"name": "bf right miss"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "hey",
+			"indices": [],
+			"name": "bf hey"
+		},
+		{
+			"offsets": [10, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "yeah",
+			"indices": [],
+			"name": "bf yeah"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "breathe",
+			"indices": [],
+			"name": "bf breathe"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "scared",
+			"indices": [],
+			"name": "bf scared"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "nervous",
+			"indices": [],
+			"name": "bf nervous"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "dodge",
+			"indices": [],
+			"name": "bf dodge"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "dodgeStylish",
+			"indices": [],
+			"name": "bf stylish"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "hurt",
+			"indices": [],
+			"name": "bf hurt"
+		},
+		{
+			"offsets": [0, 0],
+			"loop": false,
+			"fps": 24,
+			"anim": "micDrop",
+			"indices": [],
+			"name": "bf mic drop"
+		},
+		{
+			"loop": false,
+			"offsets": [0, 0],
+			"anim": "tutorialIntro",
+			"fps": 24,
+			"indices": [],
+			"name": "bf look"
+		},
+		{
+			"offsets": [0, 0],
+			"indices": [],
+			"fps": 24,
+			"anim": "resultsIntro-bad",
+			"loop": false,
+			"name": "bf results intro bad"
+		},
+		{
+			"offsets": [0, 0],
+			"indices": [],
+			"fps": 24,
+			"anim": "resultsIntro-good",
+			"loop": false,
+			"name": "bf results intro normal"
+		},
+		{
+			"offsets": [0, 0],
+			"indices": [],
+			"fps": 24,
+			"anim": "results-bad",
+			"loop": true,
+			"name": "bf results bad"
+		},
+		{
+			"offsets": [5, 36],
+			"indices": [],
+			"fps": 24,
+			"anim": "results-good",
+			"loop": true,
+			"name": "bf results good"
+		}
+	],
+	"vocals_file": "",
+	"no_antialiasing": false,
+	"image": "characters/bfFTT",
+	"position": [10, 230],
+	"healthicon": "bfftt",
+	"flip_x": true,
+	"healthbar_colors": [51, 153, 255],
+	"camera_position": [-170, 290],
+	"sing_duration": 4,
+	"scale": 1,
+	"_editor_isPlayer": true
+}
