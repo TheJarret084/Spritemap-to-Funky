@@ -8,6 +8,7 @@ DIST_DIR="$ROOT_DIR/dist"
 ANDROID_APP_DIR="$APP_DIR/bin/android/bin/app"
 APK_OUTPUT_DIR="$ANDROID_APP_DIR/build/outputs/apk"
 LAST_BUILT_APK=""
+LAST_BUILT_APKS=()
 
 build_variant() {
     local label="$1"
@@ -28,17 +29,25 @@ build_variant() {
     )
     after_list="$(find "$APK_OUTPUT_DIR" -type f -name '*.apk' 2>/dev/null | sort || true)"
 
-    LAST_BUILT_APK="$(comm -13 <(printf '%s\n' "$before_list") <(printf '%s\n' "$after_list") | tail -n 1)"
+    mapfile -t LAST_BUILT_APKS < <(comm -13 <(printf '%s\n' "$before_list") <(printf '%s\n' "$after_list") | sed '/^$/d')
+
+    LAST_BUILT_APK="${LAST_BUILT_APKS[${#LAST_BUILT_APKS[@]}-1]:-}"
     if [ -z "$LAST_BUILT_APK" ]; then
         LAST_BUILT_APK="$(find "$APK_OUTPUT_DIR" -type f -name '*.apk' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 1 | cut -d' ' -f2-)"
+        if [ -n "$LAST_BUILT_APK" ]; then
+            LAST_BUILT_APKS=("$LAST_BUILT_APK")
+        fi
     fi
 
-    if [ -z "$LAST_BUILT_APK" ] || [ ! -f "$LAST_BUILT_APK" ]; then
+    if [ ${#LAST_BUILT_APKS[@]} -eq 0 ] || [ -z "$LAST_BUILT_APK" ] || [ ! -f "$LAST_BUILT_APK" ]; then
         echo "No pude localizar la APK generada dentro de $APK_OUTPUT_DIR"
         exit 1
     fi
 
-    echo "APK detectada: $LAST_BUILT_APK"
+    echo "APKs detectadas:"
+    for apk in "${LAST_BUILT_APKS[@]}"; do
+        echo " - $apk"
+    done
 }
 
 copy_apk() {
@@ -49,14 +58,27 @@ copy_apk() {
     echo "APK lista: $DIST_DIR/$target_name"
 }
 
+copy_apks() {
+    local prefix="${1:-}"
+
+    mkdir -p "$DIST_DIR"
+
+    for apk in "${LAST_BUILT_APKS[@]}"; do
+        local base_name
+        base_name="$(basename "$apk")"
+        cp -f "$apk" "$DIST_DIR/${prefix}${base_name}"
+        echo "APK lista: $DIST_DIR/${prefix}${base_name}"
+    done
+}
+
 build_normal() {
     build_variant "normal release" "-final"
-    copy_apk "SpritemaptoFunky.apk"
+    copy_apks
 }
 
 build_caros() {
     build_variant "debug caros edition" "-debug" -D caros
-    copy_apk "SpritemaptoFunky-caros-edition.apk"
+    copy_apks "caros-"
 }
 
 main() {

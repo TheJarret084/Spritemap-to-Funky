@@ -59,11 +59,21 @@ jobs:
           echo "--- Icono presente ---"
           ls Android/androidBuild/app/assets/icons/ 2>/dev/null || echo "icono no encontrado aun"
 
+      - name: Limpiar salida generada
+        run: |
+          rm -rf Android/androidBuild/app/bin
+          rm -rf Android/androidBuild/dist
+
       - name: Build normal release
         run: bash Android/androidBuild/build.sh normal
 
       - name: Build caros debug edition
         run: bash Android/androidBuild/build.sh caros
+
+      - name: Ver APKs generadas
+        run: |
+          echo "--- APKs en dist ---"
+          find Android/androidBuild/dist -maxdepth 1 -type f -name '*.apk' | sort
 
       - name: Subir APKs al Release
         uses: softprops/action-gh-release@v2
