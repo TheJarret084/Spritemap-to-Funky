@@ -1,18 +1,52 @@
 package android;
 
+import haxe.Json;
 import lime.utils.Assets as LimeAssets;
 import openfl.Assets;
 
+class ProjectInfoData {
+    public var panelTitle:String;
+    public var linkLabel:String;
+    public var projectName:String;
+    public var projectUrl:Array<String>;
+    public var overviewLines:Array<String>;
+    public var teamEntries:Array<ProjectInfoEntryData>;
+    public var extraLines:Array<String>;
+
+    public function new() {
+        panelTitle;
+        linkLabel;
+        projectName;
+        projectUrl = [];
+        overviewLines = [];
+        teamEntries = [];
+        extraLines = [];
+    }
+}
+
+class ProjectInfoEntryData {
+    public var text:String;
+    public var icon:String;
+
+    public function new(?text:String = "", ?icon:String = "") {
+        this.text = text;
+        this.icon = icon;
+    }
+}
+
 class AppConfig {
     public static inline var APP_TITLE:String = "Spritemap to Funky!";
-    public static inline var APP_SUBTITLE:String = "Convierte el spritemap de Adove Animate en frames.";
+    public static inline var APP_SUBTITLE:String = "Convierte el spritemap de Adobe Animate en frames y ZIPs listos desde Android.";
     public static inline var SPLASH_ASSET_PATH:String = "other/cualeselproblema.jpg";
     public static inline var BROWSE_ICON_ASSET:String = "buttons/addFilesExport.png";
+    public static inline var ABOUT_ICON_ASSET:String = "icons/icon.png";
+    public static inline var PROJECT_INFO_ASSET_PATH:String = "other/project-info.json";
     public static inline var SPLASH_DURATION_MS:Int = 2200;
     public static inline var SPLASH_FADE_MS:Int = 360;
     public static inline var BACKGROUND_COLOR:Int = 0x050816;
     public static inline var SAVE_DIALOG_TITLE:String = "Guardar ZIP";
     public static inline var PACKAGE_NAME:String = "com.thejarretlabs.spritemaptofunky";
+    static var projectInfoCache:ProjectInfoData;
 
     // caros config
     #if android
@@ -32,6 +66,110 @@ class AppConfig {
         if (Assets.exists(prefixed) || LimeAssets.exists(prefixed)) return prefixed;
 
         return normalized;
+    }
+
+    public static function getProjectInfo():ProjectInfoData {
+        if (projectInfoCache != null) return projectInfoCache;
+
+        var info = defaultProjectInfo();
+        var assetPath = resolveAssetPath(PROJECT_INFO_ASSET_PATH);
+        var raw:String = null;
+
+        try {
+            if (Assets.exists(assetPath)) raw = Assets.getText(assetPath);
+            else if (LimeAssets.exists(assetPath)) raw = LimeAssets.getText(assetPath);
+        } catch (_:Dynamic) {}
+
+        if (raw != null && StringTools.trim(raw) != "") {
+            try {
+                var data:Dynamic = Json.parse(raw);
+                info.panelTitle = readString(data, "panelTitle", info.panelTitle);
+                info.linkLabel = readString(data, "linkLabel", info.linkLabel);
+                info.projectName = readString(data, "projectName", info.projectName);
+                info.projectUrl = readString(data, "projectUrl", info.projectUrl);
+                info.overviewLines = readStringArray(data, "overviewLines", info.overviewLines);
+                info.teamEntries = readEntryArray(data, "teamEntries", info.teamEntries);
+                if (info.teamEntries.length == 0) {
+                    var legacyTeamLines = readStringArray(data, "teamLines", []);
+                    for (line in legacyTeamLines) info.teamEntries.push(new ProjectInfoEntryData(line, ""));
+                }
+                info.extraLines = readStringArray(data, "extraLines", info.extraLines);
+            } catch (_:Dynamic) {}
+        }
+
+        projectInfoCache = info;
+        return projectInfoCache;
+    }
+
+    static function defaultProjectInfo():ProjectInfoData {
+        var info = new ProjectInfoData();
+        info.overviewLines = [
+            "Herramienta para convertir spritemaps exportados desde Adobe Animate en animaciones listas para empaquetar en ZIP.",
+            "La build Android exporta directo a ZIP y ya no arrastra flujo de Aseprite."
+        ];
+        info.teamEntries = [
+            new ProjectInfoEntryData("Colaboradores: JarretLabs", "icons/icon.png"),
+            new ProjectInfoEntryData("Coders: Jarret", "buttons/addFilesExport.png"),
+            new ProjectInfoEntryData("Artistas: pendiente por editar en JSON", ""),
+            new ProjectInfoEntryData("Testers: pendiente por editar en JSON", "")
+        ];
+        info.extraLines = [
+            "Descarga el proyecto completo desde GitHub para builds de escritorio o cambios al backend.",
+            "Edita project-info.json para cambiar creditos, links y texto extra sin tocar la UI."
+        ];
+        return info;
+    }
+
+    static function readString(data:Dynamic, fieldName:String, fallback:String):String {
+        if (data == null || !Reflect.hasField(data, fieldName)) return fallback;
+        var value = Reflect.field(data, fieldName);
+        return value == null ? fallback : Std.string(value);
+    }
+
+    static function readStringArray(data:Dynamic, fieldName:String, fallback:Array<String>):Array<String> {
+        if (data == null || !Reflect.hasField(data, fieldName)) return fallback.copy();
+
+        var value:Dynamic = Reflect.field(data, fieldName);
+        if (!Std.isOfType(value, Array)) return fallback.copy();
+
+        var out:Array<String> = [];
+        for (entry in cast(value, Array<Dynamic>)) {
+            if (entry != null) out.push(Std.string(entry));
+        }
+
+        return out.length > 0 ? out : fallback.copy();
+    }
+
+    static function readEntryArray(data:Dynamic, fieldName:String, fallback:Array<ProjectInfoEntryData>):Array<ProjectInfoEntryData> {
+        if (data == null || !Reflect.hasField(data, fieldName)) return cloneEntries(fallback);
+
+        var value:Dynamic = Reflect.field(data, fieldName);
+        if (!Std.isOfType(value, Array)) return cloneEntries(fallback);
+
+        var out:Array<ProjectInfoEntryData> = [];
+        for (entry in cast(value, Array<Dynamic>)) {
+            if (entry == null) continue;
+
+            if (Std.isOfType(entry, String)) {
+                out.push(new ProjectInfoEntryData(Std.string(entry), ""));
+                continue;
+            }
+
+            var text = Reflect.hasField(entry, "text") ? Std.string(Reflect.field(entry, "text")) : "";
+            var icon = Reflect.hasField(entry, "icon") ? Std.string(Reflect.field(entry, "icon")) : "";
+            if (StringTools.trim(text) == "") continue;
+            out.push(new ProjectInfoEntryData(text, icon));
+        }
+
+        return out.length > 0 ? out : cloneEntries(fallback);
+    }
+
+    static function cloneEntries(entries:Array<ProjectInfoEntryData>):Array<ProjectInfoEntryData> {
+        var out:Array<ProjectInfoEntryData> = [];
+        for (entry in entries) {
+            if (entry != null) out.push(new ProjectInfoEntryData(entry.text, entry.icon));
+        }
+        return out;
     }
 
     // ─── Paths (llamar solo después de que Lime haya iniciado) ───

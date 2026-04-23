@@ -8,12 +8,15 @@ import android.UiComponents.UiBrowseMode;
 import android.UiComponents.UiButton;
 import android.UiComponents.UiInput;
 import android.UiComponents.UiToggle;
+import openfl.Lib;
+import openfl.display.Bitmap;
 import openfl.display.Shape;
 import openfl.display.Sprite;
 import openfl.display.StageAlign;
 import openfl.display.StageScaleMode;
 import openfl.events.Event;
 import openfl.events.MouseEvent;
+import openfl.net.URLRequest;
 import openfl.text.TextField;
 import openfl.text.TextFieldAutoSize;
 import openfl.text.TextFormat;
@@ -51,7 +54,23 @@ class MainView extends Sprite {
     var logField:TextField;
     var logLines:Array<String> = [];
 
+    var infoButton:Sprite;
+    var infoButtonBg:Shape;
+    var infoButtonIcon:Bitmap;
+
+    var aboutOverlay:Sprite;
+    var aboutScrim:Shape;
+    var aboutCard:CardSection;
+    var aboutIntroField:TextField;
+    var aboutProjectField:TextField;
+    var aboutTeamList:Sprite;
+    var aboutExtraField:TextField;
+    var aboutLinkButton:UiButton;
+    var aboutCloseButton:UiButton;
+    var aboutVisible:Bool = false;
+
     var paths:ProjectPaths;
+    var projectInfo:ProjectInfoData;
     var statusColor:Int = 0x334155;
 
     public function new() {
@@ -72,17 +91,20 @@ class MainView extends Sprite {
         stage.color = AppConfig.BACKGROUND_COLOR;
 
         paths = Backend.createDefaultPaths();
+        projectInfo = AppConfig.getProjectInfo();
 
         buildChrome();
         buildInputs();
         buildAnimations();
         buildLog();
+        buildAboutOverlay();
 
         stage.addEventListener(Event.RESIZE, onResize);
         layout();
 
         appendLog("Selecciona los archivos del proyecto.");
         appendLog("La app los copia al storage interno de Android y al final guarda un ZIP.");
+        appendLog("La build movil exporta directo a ZIP; el flujo de Aseprite ya no aplica aqui.");
         setStatus("Esperando archivos", 0x475569);
     }
 
@@ -127,12 +149,14 @@ class MainView extends Sprite {
 
         logCard = new CardSection("Log");
         addChild(logCard);
+
+        buildInfoButton();
     }
 
     function buildInputs():Void {
         animationJsonInput = new UiInput("Animation.json", "Selecciona el timeline principal.", OPEN_FILE, "json", "Selecciona Animation.json");
         atlasJsonInput = new UiInput("spritemap1.json", "Selecciona el atlas JSON.", OPEN_FILE, "json", "Selecciona spritemap1.json");
-        atlasPngInput = new UiInput("Atlas PNG (opcional)", "Si lo dejas vacío, se resuelve desde spritemap1.json.", OPEN_FILE, "png", "Selecciona atlas PNG");
+        atlasPngInput = new UiInput("Atlas PNG", "Si lo dejas vacío, se resuelve desde spritemap1.json.", OPEN_FILE, "png", "Selecciona atlas PNG");
         animsXmlInput = new UiInput("anims.xml (opcional)", "Lista estilo Codename.", OPEN_FILE, "xml", "Selecciona anims.xml");
         animsJsonInput = new UiInput("anims.json (opcional)", "Lista estilo Psych/FNF.", OPEN_FILE, "json", "Selecciona anims.json");
         filterInput = new UiInput("Filtro", "Filtra por nombre o símbolo.", NONE);
@@ -181,7 +205,7 @@ class MainView extends Sprite {
         helperField.mouseEnabled = false;
         helperField.multiline = true;
         helperField.wordWrap = true;
-        helperField.text = "Toca una fila para activarla o desactivarla. Si deslizas verticalmente, la lista hace scroll.";
+        helperField.text = "Toca una fila para activarla o desactivarla. Desliza verticalmente para hacer scroll y exportar solo lo que te interesa.";
         animationsCard.content.addChild(helperField);
 
         animationsView = new AnimationListView();
@@ -211,6 +235,85 @@ class MainView extends Sprite {
         logField.wordWrap = true;
         logField.mouseWheelEnabled = true;
         logCard.content.addChild(logField);
+    }
+
+    function buildInfoButton():Void {
+        infoButton = new Sprite();
+        infoButton.buttonMode = true;
+        infoButton.useHandCursor = true;
+        infoButton.mouseChildren = false;
+
+        infoButtonBg = new Shape();
+        infoButton.addChild(infoButtonBg);
+
+        infoButtonIcon = new Bitmap(openfl.Assets.getBitmapData(AppConfig.resolveAssetPath(AppConfig.ABOUT_ICON_ASSET)));
+        infoButtonIcon.smoothing = true;
+        infoButton.addChild(infoButtonIcon);
+
+        infoButton.addEventListener(MouseEvent.CLICK, function(_) {
+            toggleAbout();
+        });
+
+        addChild(infoButton);
+    }
+
+    function buildAboutOverlay():Void {
+        aboutOverlay = new Sprite();
+        aboutOverlay.visible = false;
+        addChild(aboutOverlay);
+
+        aboutScrim = new Shape();
+        aboutOverlay.addChild(aboutScrim);
+        aboutScrim.addEventListener(MouseEvent.CLICK, function(_) {
+            toggleAbout(false);
+        });
+
+        aboutCard = new CardSection(projectInfo.panelTitle);
+        aboutOverlay.addChild(aboutCard);
+
+        aboutIntroField = createAboutField(16, 0xE2E8F0, false);
+        aboutProjectField = createAboutField(13, 0x93C5FD, false);
+        aboutProjectField.selectable = true;
+        aboutProjectField.mouseEnabled = true;
+        aboutTeamList = new Sprite();
+        aboutExtraField = createAboutField(12, 0x94A3B8, false);
+
+        aboutLinkButton = new UiButton(projectInfo.linkLabel, 0x0EA5E9);
+        aboutCloseButton = new UiButton("Cerrar", 0x334155);
+
+        aboutCard.content.addChild(aboutIntroField);
+        aboutCard.content.addChild(aboutProjectField);
+        aboutCard.content.addChild(aboutTeamList);
+        aboutCard.content.addChild(aboutExtraField);
+        aboutCard.content.addChild(aboutLinkButton);
+        aboutCard.content.addChild(aboutCloseButton);
+
+        aboutLinkButton.addEventListener(MouseEvent.CLICK, function(_) {
+            openProjectLink();
+        });
+
+        aboutCloseButton.addEventListener(MouseEvent.CLICK, function(_) {
+            toggleAbout(false);
+        });
+
+        refreshAboutText();
+    }
+
+    function createAboutField(size:Int, color:Int, bold:Bool):TextField {
+        var field = new TextField();
+        field.defaultTextFormat = new TextFormat("_sans", size, color, bold);
+        field.textColor = color;
+        field.selectable = false;
+        field.mouseEnabled = false;
+        field.multiline = true;
+        field.wordWrap = true;
+        return field;
+    }
+
+    function refreshAboutText():Void {
+        aboutIntroField.text = projectInfo.projectName + "\n" + projectInfo.overviewLines.join("\n");
+        aboutProjectField.text = "Descarga del proyecto\n" + projectInfo.projectUrl;
+        aboutExtraField.text = projectInfo.extraLines.join("\n");
     }
 
     function syncPathsFromInputs():Void {
@@ -312,18 +415,19 @@ class MainView extends Sprite {
 
     function updateSelectionSummary():Void {
         var selected = animationsView.getSelectedItems().length;
-        selectionField.text = selected + " seleccionadas";
+        selectionField.text = selected + " seleccionadas para el ZIP";
     }
 
     function setStatus(text:String, color:Int):Void {
         statusColor = color;
         statusField.text = text;
-        statusField.x = stage.stageWidth - statusField.textWidth - 54;
+        var rightEdge = infoButton != null ? infoButton.x - 14 : stage.stageWidth - 24;
+        statusField.x = rightEdge - statusField.textWidth - 20;
         statusField.y = 34;
 
         statusBadge.graphics.clear();
         statusBadge.graphics.beginFill(statusColor, 0.95);
-        statusBadge.graphics.drawRoundRect(stage.stageWidth - statusField.textWidth - 70, 28, statusField.textWidth + 34, 28, 14, 14);
+        statusBadge.graphics.drawRoundRect(rightEdge - statusField.textWidth - 36, 28, statusField.textWidth + 34, 28, 14, 14);
         statusBadge.graphics.endFill();
     }
 
@@ -339,38 +443,38 @@ class MainView extends Sprite {
 
         drawBackground(width, height);
 
+        layoutInfoButton(width, margin);
+
+        var headerRight = infoButton.x - 18;
         titleField.x = margin;
         titleField.y = 24;
-        titleField.width = width - margin * 2 - 180;
+        titleField.width = Math.max(180, headerRight - margin);
         titleField.height = 40;
 
         subtitleField.x = margin;
         subtitleField.y = 70;
-        subtitleField.width = width - margin * 2 - 180;
+        subtitleField.width = Math.max(180, headerRight - margin);
         subtitleField.height = 42;
 
         var contentTop = headerHeight + margin;
         var gap = 18.0;
 
         if (width >= 980) {
-            var leftWidth = Math.max(360.0, width * 0.42);
-            var rightWidth = width - margin * 2 - leftWidth - gap;
-
-            var inputsHeight = Math.min(620.0, height - contentTop - margin - 200);
-            if (inputsHeight < 460) inputsHeight = 460;
-            var logHeight = Math.max(300.0, height - contentTop - margin);
+            var fullWidth = width - margin * 2;
+            var topCardWidth = (fullWidth - gap) * 0.5;
+            var topHeight = Math.max(420.0, Math.min(620.0, height - contentTop - margin - 250));
 
             inputsCard.x = margin;
             inputsCard.y = contentTop;
-            inputsCard.setSize(leftWidth, inputsHeight);
+            inputsCard.setSize(topCardWidth, topHeight);
 
-            animationsCard.x = margin;
-            animationsCard.y = inputsCard.y + inputsHeight + gap;
-            animationsCard.setSize(leftWidth, Math.max(220.0, height - animationsCard.y - margin));
+            animationsCard.x = margin + topCardWidth + gap;
+            animationsCard.y = contentTop;
+            animationsCard.setSize(topCardWidth, topHeight);
 
-            logCard.x = margin + leftWidth + gap;
-            logCard.y = contentTop;
-            logCard.setSize(rightWidth, logHeight);
+            logCard.x = margin;
+            logCard.y = contentTop + topHeight + gap;
+            logCard.setSize(fullWidth, Math.max(220.0, height - logCard.y - margin));
         } else {
             var fullWidth = width - margin * 2;
             var nextY = contentTop;
@@ -395,6 +499,7 @@ class MainView extends Sprite {
         layoutInputsCard();
         layoutAnimationsCard();
         layoutLogCard();
+        layoutAboutOverlay(width, height, margin);
         setStatus(statusField.text == null || statusField.text == "" ? "Listo" : statusField.text, statusColor);
     }
 
@@ -433,14 +538,16 @@ class MainView extends Sprite {
         exportFramesToggle.setSize(cardWidth);
         y += 44;
 
-        var halfWidth = (cardWidth - 10) * 0.5;
+        var buttonGap = 12.0;
+        var refreshWidth = Math.max(154.0, (cardWidth - buttonGap) * 0.34);
+        var exportWidth = Math.max(190.0, cardWidth - refreshWidth - buttonGap);
         refreshButton.x = 0;
         refreshButton.y = y;
-        refreshButton.setSize(halfWidth, 52);
+        refreshButton.setSize(refreshWidth, 52);
 
-        exportButton.x = halfWidth + 10;
+        exportButton.x = refreshWidth + buttonGap;
         exportButton.y = y;
-        exportButton.setSize(halfWidth, 52);
+        exportButton.setSize(exportWidth, 52);
     }
 
     function layoutAnimationsCard():Void {
@@ -478,6 +585,156 @@ class MainView extends Sprite {
         logField.y = 0;
         logField.width = logCard.innerWidth;
         logField.height = logCard.innerHeight;
+    }
+
+    function layoutInfoButton(width:Float, margin:Float):Void {
+        var size = width < 900 ? 46.0 : 50.0;
+
+        infoButtonBg.graphics.clear();
+        infoButtonBg.graphics.beginFill(0x0F172A, 0.98);
+        infoButtonBg.graphics.lineStyle(2, 0x38BDF8, 0.45);
+        infoButtonBg.graphics.drawRoundRect(0, 0, size, size, 18, 18);
+        infoButtonBg.graphics.endFill();
+
+        infoButtonIcon.width = size - 18;
+        infoButtonIcon.height = size - 18;
+        infoButtonIcon.x = (size - infoButtonIcon.width) * 0.5;
+        infoButtonIcon.y = (size - infoButtonIcon.height) * 0.5;
+
+        infoButton.x = width - margin - size;
+        infoButton.y = 24;
+    }
+
+    function layoutAboutOverlay(width:Float, height:Float, margin:Float):Void {
+        aboutOverlay.visible = aboutVisible;
+
+        aboutScrim.graphics.clear();
+        aboutScrim.graphics.beginFill(0x020617, aboutVisible ? 0.80 : 0.0);
+        aboutScrim.graphics.drawRect(0, 0, width, height);
+        aboutScrim.graphics.endFill();
+
+        var panelWidth = Math.min(620.0, width - margin * 2);
+        var panelHeight = Math.min(540.0, height - margin * 2);
+        if (panelHeight < 420) panelHeight = height - margin * 2;
+
+        aboutCard.setSize(panelWidth, panelHeight);
+        aboutCard.x = (width - panelWidth) * 0.5;
+        aboutCard.y = (height - panelHeight) * 0.5;
+
+        var contentWidth = aboutCard.innerWidth;
+        var y = 0.0;
+
+        aboutIntroField.x = 0;
+        aboutIntroField.y = y;
+        aboutIntroField.width = contentWidth;
+        aboutIntroField.height = measuredTextHeight(aboutIntroField, 52);
+        y += aboutIntroField.height + 10;
+
+        aboutProjectField.x = 0;
+        aboutProjectField.y = y;
+        aboutProjectField.width = contentWidth;
+        aboutProjectField.height = measuredTextHeight(aboutProjectField, 38);
+        y += aboutProjectField.height + 14;
+
+        aboutTeamList.x = 0;
+        aboutTeamList.y = y;
+        y += rebuildAboutTeamList(contentWidth) + 14;
+
+        var buttonsY = aboutCard.innerHeight - 52;
+        aboutExtraField.x = 0;
+        aboutExtraField.y = y;
+        aboutExtraField.width = contentWidth;
+        aboutExtraField.height = Math.max(36, buttonsY - y - 12);
+
+        var buttonGap = 12.0;
+        var buttonWidth = (contentWidth - buttonGap) * 0.5;
+        aboutLinkButton.x = 0;
+        aboutLinkButton.y = buttonsY;
+        aboutLinkButton.setSize(buttonWidth, 48);
+
+        aboutCloseButton.x = buttonWidth + buttonGap;
+        aboutCloseButton.y = buttonsY;
+        aboutCloseButton.setSize(buttonWidth, 48);
+    }
+
+    function rebuildAboutTeamList(width:Float):Float {
+        while (aboutTeamList.numChildren > 0) {
+            aboutTeamList.removeChildAt(0);
+        }
+
+        if (projectInfo == null || projectInfo.teamEntries == null || projectInfo.teamEntries.length == 0) {
+            return 0;
+        }
+
+        var y = 0.0;
+        for (entry in projectInfo.teamEntries) {
+            var row = createAboutTeamRow(entry, width);
+            row.y = y;
+            aboutTeamList.addChild(row);
+            y += row.height + 10;
+        }
+
+        return y > 0 ? y - 10 : 0;
+    }
+
+    function createAboutTeamRow(entry:ProjectInfoEntryData, width:Float):Sprite {
+        var row = new Sprite();
+        var iconSize = 20.0;
+        var textX = 0.0;
+
+        if (entry != null && entry.icon != null && StringTools.trim(entry.icon) != "") {
+            var assetPath = AppConfig.resolveAssetPath(entry.icon);
+            try {
+                if (openfl.Assets.exists(assetPath)) {
+                    var icon = new Bitmap(openfl.Assets.getBitmapData(assetPath));
+                    icon.smoothing = true;
+                    icon.width = iconSize;
+                    icon.height = iconSize;
+                    icon.y = 1;
+                    row.addChild(icon);
+                    textX = iconSize + 10;
+                }
+            } catch (_:Dynamic) {}
+        }
+
+        var field = createAboutField(14, 0xF8FAFC, false);
+        field.text = entry != null ? entry.text : "";
+        field.x = textX;
+        field.y = 0;
+        field.width = Math.max(40, width - textX);
+        field.height = measuredTextHeight(field, 20);
+        row.addChild(field);
+
+        return row;
+    }
+
+    function measuredTextHeight(field:TextField, minHeight:Float):Float {
+        return Math.max(minHeight, field.textHeight + 10);
+    }
+
+    function toggleAbout(?force:Bool):Void {
+        aboutVisible = force == null ? !aboutVisible : force;
+        if (aboutVisible) {
+            setChildIndex(aboutOverlay, numChildren - 1);
+            refreshAboutText();
+        }
+        layout();
+    }
+
+    function openProjectLink():Void {
+        if (projectInfo == null || StringTools.trim(projectInfo.projectUrl) == "") {
+            appendLog("No hay link configurado para el proyecto.");
+            setStatus("Sin link configurado", 0x7C2D12);
+            return;
+        }
+
+        try {
+            Lib.getURL(new URLRequest(projectInfo.projectUrl), "_blank");
+            appendLog("Abriendo proyecto: " + projectInfo.projectUrl);
+        } catch (error:Dynamic) {
+            appendLog("No pude abrir el link del proyecto: " + Std.string(error));
+            setStatus("No pude abrir el link", 0x7C2D12);
+        }
     }
 
     function drawBackground(width:Float, height:Float):Void {

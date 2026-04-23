@@ -85,8 +85,6 @@ class Backend {
         var request:Dynamic = buildBaseRequest(normalizedPaths);
         Reflect.setField(request, "selected", toSelectionPayload(choices));
         Reflect.setField(request, "exportFrames", exportFrames);
-        Reflect.setField(request, "exportAse", false);
-        Reflect.setField(request, "asepritePath", "aseprite");
 
         var response = parseJsonResponse(Api.exportProject(Json.stringify(request)));
         var result = new ExportResult(

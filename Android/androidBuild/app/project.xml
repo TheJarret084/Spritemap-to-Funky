@@ -22,7 +22,7 @@
                 fullscreen="false" />
 
         <icon path="assets/icons/iconOG.png" unless="caros" />
-        <icon path="assets/icons/icon.png" if="caros" />
+        <icon path="assets/icons/iconOG.png" if="caros" />
 
         <permission name="android.permission.READ_EXTERNAL_STORAGE" />
     </if>
@@ -30,9 +30,7 @@
     <source path="src" />
     <java path="android/java" if="android" />
     <!-- ASSETS -->
-    <assets path="assets/buttons" rename="buttons" />
-    <assets path="assets/icons"   rename="icons"   />
-    <assets path="assets/other"   rename="other"   />
+    <assets path="assets" rename="assets" />
 
     <haxelib name="openfl" />
     <haxelib name="lime" />

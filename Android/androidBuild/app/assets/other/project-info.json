@@ -1,0 +1,32 @@
+{
+  "panelTitle": "Info sobre la APP",
+  "linkLabel": "Abrir proyecto",
+  "projectName": "Spritemap to Funky",
+  "projectUrl": ["https://github.com/TheJarret084/Spritemap-to-Funky"],
+  "overviewLines": [
+    "Herramienta para convertir spritemaps exportados desde Adobe Animate en animaciones listas para empaquetar en ZIP.",
+    "La build Android exporta directo a ZIP."
+  ],
+  "teamEntries": [
+    {
+      "text": "Colaboradores: Jarret, UnwiFoxy11",
+      "icon": "icons/icon.png"
+    },
+    {
+      "text": "Coders: Jarret",
+      "icon": "info-icons/Jarret.png"
+    },
+    {
+      "text": "Artistas: UnwiFoxy11",
+      "icon": ""
+    },
+    {
+      "text": "Testers: Yrick, Thiago",
+      "icon": ""
+    }
+  ],
+  "extraLines": [
+    "Descarga el proyecto completo desde GitHub o en GameBanana.",
+    "Si tienes problemas, contacta Jarret para solucionarlo."
+  ]
+}

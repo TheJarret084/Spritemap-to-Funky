@@ -22,6 +22,8 @@ build_variant() {
     before_list="$(find "$APK_OUTPUT_DIR" -type f -name '*.apk' 2>/dev/null | sort || true)"
     (
         cd "$APP_DIR"
+        # Evita que Gradle/Lime recicle drawables o assets viejos entre builds.
+        haxelib run lime clean project.xml android
         haxelib run lime build project.xml android "$build_flag" "${extra_args[@]}"
     )
     after_list="$(find "$APK_OUTPUT_DIR" -type f -name '*.apk' 2>/dev/null | sort || true)"
