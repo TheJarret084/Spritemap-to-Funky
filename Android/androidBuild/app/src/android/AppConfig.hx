@@ -8,7 +8,7 @@ class ProjectInfoData {
     public var panelTitle:String;
     public var linkLabel:String;
     public var projectName:String;
-    public var projectUrl:Array<String>;
+    public var projectUrl:String;
     public var overviewLines:Array<String>;
     public var teamEntries:Array<ProjectInfoEntryData>;
     public var extraLines:Array<String>;
@@ -17,7 +17,7 @@ class ProjectInfoData {
         panelTitle;
         linkLabel;
         projectName;
-        projectUrl = [];
+        projectUrl = "";
         overviewLines = [];
         teamEntries = [];
         extraLines = [];
@@ -86,7 +86,7 @@ class AppConfig {
                 info.panelTitle = readString(data, "panelTitle", info.panelTitle);
                 info.linkLabel = readString(data, "linkLabel", info.linkLabel);
                 info.projectName = readString(data, "projectName", info.projectName);
-                info.projectUrl = readString(data, "projectUrl", info.projectUrl);
+                info.projectUrl = readStringOrFirstArrayValue(data, "projectUrl", info.projectUrl);
                 info.overviewLines = readStringArray(data, "overviewLines", info.overviewLines);
                 info.teamEntries = readEntryArray(data, "teamEntries", info.teamEntries);
                 if (info.teamEntries.length == 0) {
@@ -124,6 +124,26 @@ class AppConfig {
         if (data == null || !Reflect.hasField(data, fieldName)) return fallback;
         var value = Reflect.field(data, fieldName);
         return value == null ? fallback : Std.string(value);
+    }
+
+    static function readStringOrFirstArrayValue(data:Dynamic, fieldName:String, fallback:String):String {
+        if (data == null || !Reflect.hasField(data, fieldName)) return fallback;
+
+        var value:Dynamic = Reflect.field(data, fieldName);
+        if (value == null) return fallback;
+
+        if (Std.isOfType(value, Array)) {
+            var entries:Array<Dynamic> = cast value;
+            for (entry in entries) {
+                if (entry == null) continue;
+                var text = StringTools.trim(Std.string(entry));
+                if (text != "") return text;
+            }
+            return fallback;
+        }
+
+        var text = StringTools.trim(Std.string(value));
+        return text == "" ? fallback : text;
     }
 
     static function readStringArray(data:Dynamic, fieldName:String, fallback:Array<String>):Array<String> {

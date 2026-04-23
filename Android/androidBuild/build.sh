@@ -51,12 +51,12 @@ copy_apk() {
 
 build_normal() {
     build_variant "normal release" "-final"
-    copy_apk "SpritemaptoFunky-normal.apk"
+    copy_apk "SpritemaptoFunky.apk"
 }
 
 build_caros() {
     build_variant "debug caros edition" "-debug" -D caros
-    copy_apk "SpritemaptoFunky-debug-caros-edition.apk"
+    copy_apk "SpritemaptoFunky-caros-edition.apk"
 }
 
 main() {

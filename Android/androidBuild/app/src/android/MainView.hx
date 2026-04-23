@@ -2,12 +2,14 @@ package android;
 
 import android.AppModel.LoadResult;
 import android.AppModel.ProjectPaths;
+import android.AppConfig.ProjectInfoEntryData;
 import android.UiComponents.AnimationListView;
 import android.UiComponents.CardSection;
 import android.UiComponents.UiBrowseMode;
 import android.UiComponents.UiButton;
 import android.UiComponents.UiInput;
 import android.UiComponents.UiToggle;
+import android.AppConfig.ProjectInfoData;
 import openfl.Lib;
 import openfl.display.Bitmap;
 import openfl.display.Shape;

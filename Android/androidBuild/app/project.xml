@@ -21,8 +21,8 @@
                 orientation="portrait"
                 fullscreen="false" />
 
-        <icon path="iconAndroid" unless="caros" />
-        <icon path="assets/icons/iconOG.png" if="caros" />
+        <icon path="iconAndroid.png" unless="caros" />
+        <icon path="assets/icons/icon.png" if="caros" />
 
         <permission name="android.permission.READ_EXTERNAL_STORAGE" />
     </if>
