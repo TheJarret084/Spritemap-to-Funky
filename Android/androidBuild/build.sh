@@ -31,7 +31,10 @@ build_variant() {
 
     mapfile -t LAST_BUILT_APKS < <(comm -13 <(printf '%s\n' "$before_list") <(printf '%s\n' "$after_list") | sed '/^$/d')
 
-    LAST_BUILT_APK="${LAST_BUILT_APKS[${#LAST_BUILT_APKS[@]}-1]:-}"
+    LAST_BUILT_APK=""
+    if [ ${#LAST_BUILT_APKS[@]} -gt 0 ]; then
+        LAST_BUILT_APK="${LAST_BUILT_APKS[${#LAST_BUILT_APKS[@]}-1]}"
+    fi
     if [ -z "$LAST_BUILT_APK" ]; then
         LAST_BUILT_APK="$(find "$APK_OUTPUT_DIR" -type f -name '*.apk' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 1 | cut -d' ' -f2-)"
         if [ -n "$LAST_BUILT_APK" ]; then
