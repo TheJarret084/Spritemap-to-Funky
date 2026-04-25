@@ -25,7 +25,7 @@ class ImportadorMediaBackend {
 
     static function getMediaBaseDir():String {
         #if android
-        return AppConfig.getMediaDir();
+        return resolvePrimaryMediaBaseDir();
         #elseif sys
         return Path.join([Sys.getCwd(), AppConfig.PACKAGE_NAME]);
         #else
@@ -35,7 +35,7 @@ class ImportadorMediaBackend {
 
     public static function getMediaSpritemapsDir():String {
         #if android
-        return AppConfig.getSpritemapsDir();
+        return resolvePrimarySpritemapsDir();
         #else
         return Path.join([getMediaBaseDir(), "spritemaps"]);
         #end
@@ -68,9 +68,9 @@ class ImportadorMediaBackend {
      */
     public static function ensureMediaDirectories():Void {
         var dirs = [
-            getMediaSpritemapsDir(),
-            getMediaProcessedDir(),
-            getMediaExportsDir()
+            AppConfig.getSpritemapsDir(),
+            AppConfig.getProcessedMediaDir(),
+            AppConfig.getExportsDir()
         ];
 
         for (dir in dirs) {
@@ -98,14 +98,22 @@ class ImportadorMediaBackend {
     public static function findProjectDirectories():Array<String> {
         var results:Array<String> = [];
         #if sys
-        var root = getMediaSpritemapsDir();
-        if (!GestorArchivosBackend.directoryExists(root)) {
-            AppLogger.warn("No existe la carpeta de spritemaps: " + root);
+        var roots = getMediaSpritemapsSearchDirs();
+        var existingRoots = [];
+        for (root in roots) {
+            if (!GestorArchivosBackend.directoryExists(root)) continue;
+            existingRoots.push(root);
+            collectProjectDirectories(root, results, 0, 4);
+        }
+
+        if (existingRoots.length == 0) {
+            AppLogger.warn("No existe ninguna carpeta de spritemaps en: " + roots.join(" | "));
             return results;
         }
-        collectProjectDirectories(root, results, 0, 4);
+
+        results = uniquePaths(results);
         results.sort(GestorArchivosBackend.compareStrings);
-        AppLogger.log("Proyectos encontrados: " + results.length + " en " + root);
+        AppLogger.log("Proyectos encontrados: " + results.length + " en " + existingRoots.join(" | "));
         #end
         return results;
     }
@@ -128,7 +136,17 @@ class ImportadorMediaBackend {
         if (index < 0 || index >= candidates.length) {
             throw "Índice de proyecto fuera de rango: " + index;
         }
-        return createProjectPaths(candidates[index]);
+        return loadProjectFromDirectory(candidates[index]);
+    }
+
+    public static function loadProjectFromDirectory(projectDir:String):ProjectPaths {
+        if (GestorArchivosBackend.isBlank(projectDir)) {
+            throw "La ruta del proyecto está vacía.";
+        }
+        if (!containsProjectFiles(projectDir)) {
+            throw "La carpeta no contiene los archivos requeridos: " + projectDir;
+        }
+        return createProjectPaths(projectDir);
     }
 
     /**
@@ -138,7 +156,7 @@ class ImportadorMediaBackend {
         ensureMediaDirectories();
         var candidates = findProjectDirectories();
         if (candidates.length == 0) {
-            throw "No encontré proyectos en " + getMediaSpritemapsDir() +
+            throw "No encontré proyectos en " + getMediaSpritemapsSearchDirs().join(" | ") +
                   " (necesita animations.json + spritemap.json + spritemap.png)";
         }
         return createProjectPaths(candidates[0]);
@@ -148,7 +166,7 @@ class ImportadorMediaBackend {
         ensureMediaDirectories();
         var candidates = findProjectDirectories();
         var lines = [
-            "Buscando proyectos en: " + getMediaSpritemapsDir(),
+            "Buscando proyectos en: " + getMediaSpritemapsSearchDirs().join(" | "),
             "Salida automática en:  " + getMediaProcessedDir()
         ];
         if (candidates.length == 0) {
@@ -244,5 +262,38 @@ class ImportadorMediaBackend {
         for (bad in ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"])
             clean = StringTools.replace(clean, bad, "_");
         return clean;
+    }
+
+    static function resolvePrimaryMediaBaseDir():String {
+        var candidates = AppConfig.getMediaDirCandidates();
+        for (path in candidates) {
+            if (GestorArchivosBackend.directoryExists(path)) return path;
+        }
+        return AppConfig.getMediaDir();
+    }
+
+    static function resolvePrimarySpritemapsDir():String {
+        var candidates = getMediaSpritemapsSearchDirs();
+        for (path in candidates) {
+            if (GestorArchivosBackend.directoryExists(path)) return path;
+        }
+        return AppConfig.getSpritemapsDir();
+    }
+
+    static function getMediaSpritemapsSearchDirs():Array<String> {
+        #if android
+        return AppConfig.getSpritemapsDirCandidates();
+        #else
+        return [Path.join([getMediaBaseDir(), "spritemaps"])];
+        #end
+    }
+
+    static function uniquePaths(paths:Array<String>):Array<String> {
+        var out:Array<String> = [];
+        for (path in paths) {
+            if (GestorArchivosBackend.isBlank(path)) continue;
+            if (out.indexOf(path) == -1) out.push(path);
+        }
+        return out;
     }
 }

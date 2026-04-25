@@ -47,16 +47,16 @@ class AppConfig {
 
     // ── Discord RPC (desktop solamente) ─────────────────────────────────────
     //   Pon aquí el Application ID real de tu app de Discord Developer Portal.
-    public static inline var DISCORD_APP_ID:String            = "";
-    public static inline var DISCORD_DEFAULT_DETAILS:String   = "Editando spritemaps";
-    public static inline var DISCORD_DEFAULT_STATE:String     = "Desktop build";
-    public static inline var DISCORD_LARGE_IMAGE_KEY:String   = "";
+    public static inline var DISCORD_APP_ID:String            = "1497540409641926786"; // app id segun discord developer portal
+    public static inline var DISCORD_DEFAULT_DETAILS:String   = "Viendo spritemaps";
+    public static inline var DISCORD_DEFAULT_STATE:String     = "Haciendo nada";
+    public static inline var DISCORD_LARGE_IMAGE_KEY:String   = ""; // ni puta idea de qué poner aquí
     public static inline var DISCORD_LARGE_IMAGE_TEXT:String  = "Spritemap to Funky";
-    public static inline var DISCORD_SMALL_IMAGE_KEY:String   = "";
-    public static inline var DISCORD_SMALL_IMAGE_TEXT:String  = "";
+    public static inline var DISCORD_SMALL_IMAGE_KEY:String   = ""; // ni puta idea de qué poner aquí
+    public static inline var DISCORD_SMALL_IMAGE_TEXT:String  = ""; // ni puta idea de qué poner aquí
 
     // ── Assets ────────────────────────────────────────────────────────────────
-    public static inline var SPLASH_ASSET_PATH:String     = "other/cualeselproblema.jpg";
+    public static inline var SPLASH_ASSET_PATH:String     = "other/banner.png";
     public static inline var BROWSE_ICON_ASSET:String     = "buttons/addFilesExport.png";
     public static inline var ABOUT_ICON_ASSET:String      = "icons/icon.png";
     public static inline var PROJECT_INFO_ASSET_PATH:String = "other/project-info.json";
@@ -106,9 +106,30 @@ class AppConfig {
         return "/sdcard/Android/media/" + PACKAGE_NAME + "/";
     }
 
+    /** Rutas candidatas para builds/dispositivos con variaciones de storage. */
+    public static function getMediaDirCandidates():Array<String> {
+        var candidates = [
+            "/sdcard/Android/media/" + PACKAGE_NAME + "/",
+            "/storage/emulated/0/Android/media/" + PACKAGE_NAME + "/",
+            "/sdcard/Android/media/package_name/",
+            "/storage/emulated/0/Android/media/package_name/"
+        ];
+
+        var out:Array<String> = [];
+        for (path in candidates) {
+            if (path == null || StringTools.trim(path) == "") continue;
+            if (out.indexOf(path) == -1) out.push(path);
+        }
+        return out;
+    }
+
     /** Carpeta donde el usuario pone sus proyectos (con las tres keys) */
     public static function getSpritemapsDir():String {
         return getMediaDir() + "spritemaps/";
+    }
+
+    public static function getSpritemapsDirCandidates():Array<String> {
+        return [for (base in getMediaDirCandidates()) base + "spritemaps/"];
     }
 
     /** Resultados procesados en media */
@@ -187,19 +208,21 @@ class AppConfig {
 
     static function defaultProjectInfo():ProjectInfoData {
         var info = new ProjectInfoData();
+        info.panelTitle = "Informacion del proyecto";
+        info.linkLabel  = "Abrir enlace";
+        info.projectName = "Proyecto sin configurar";
+        info.projectUrl  = "";
         info.overviewLines = [
-            "Herramienta para convertir spritemaps exportados desde Adobe Animate en animaciones listas para empaquetar en ZIP.",
-            "La build Android exporta directo a ZIP y ya no arrastra flujo de Aseprite."
+            "No se encontro un archivo project-info.json valido.",
+            "Puedes personalizar este panel editando assets/other/project-info.json."
         ];
         info.teamEntries = [
-            new ProjectInfoEntryData("Colaboradores: JarretLabs",         "icons/icon.png"),
-            new ProjectInfoEntryData("Coders: Jarret",                    "buttons/addFilesExport.png"),
-            new ProjectInfoEntryData("Artistas: pendiente por editar en JSON", ""),
-            new ProjectInfoEntryData("Testers: pendiente por editar en JSON",  "")
+            new ProjectInfoEntryData("Agrega colaboradores desde el JSON", ""),
+            new ProjectInfoEntryData("Puedes usar color, negrita y tachado en los textos", "")
         ];
         info.extraLines = [
-            "Descarga el proyecto completo desde GitHub para builds de escritorio o cambios al backend.",
-            "Edita project-info.json para cambiar creditos, links y texto extra sin tocar la UI."
+            "Campos soportados: panelTitle, linkLabel, projectName, projectUrl, overviewLines, teamEntries y extraLines.",
+            "Si un campo falta, la app usa este contenido generico como respaldo."
         ];
         return info;
     }

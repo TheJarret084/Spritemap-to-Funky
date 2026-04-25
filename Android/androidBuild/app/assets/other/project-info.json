@@ -1,32 +1,37 @@
 {
-  "panelTitle": "Info sobre la APP",
+  "panelTitle": "[b]Info sobre la APP[/b]",
   "linkLabel": "Abrir proyecto",
-  "projectName": "Spritemap to Funky",
-  "projectUrl": ["https://github.com/TheJarret084/Spritemap-to-Funky"],
+  "projectName": "[color=#60A5FA]Spritemap[/color] to [color=#F59E0B]Funky[/color]",
+  "projectUrl": ["https://github.com/TheJarret084/Spritemap-to-Funky", "https://gamebanana.com"],
   "overviewLines": [
-    "Herramienta para convertir spritemaps exportados desde Adobe Animate en animaciones listas para empaquetar en ZIP.",
-    "La build Android exporta directo a ZIP."
+    "Herramienta para convertir spritemaps exportados desde [color=#F97316]Adobe Animate[/color] en animaciones listas para empaquetar en [b]ZIP[/b].",
+    "La build de Android exporta directo a [color=#22C55E]ZIP[/color] y agiliza el flujo para probar animaciones sin tanta vuelta.",
+    "[color=#93C5FD]Hecha para volver mas comodo el proceso de pasar del spritemap a algo util dentro del juego.[/color]"
   ],
   "teamEntries": [
     {
-      "text": "Colaboradores: Jarret, UnwiFoxy11",
-      "icon": "icons/icon.png"
+      "text": "[b]Colaboradores principales:[/b] [color=#60A5FA]Jarret[/color] & [color=#F472B6]UnwiFoxy11[/color]",
+      "icon": "icons/icon"
     },
     {
-      "text": "Coders: Jarret",
-      "icon": "info-icons/Jarret.png"
+      "text": "[b]Coder:[/b] [color=#60A5FA]Jarret[/color]",
+      "icon": "info-icons/Jarret"
     },
     {
-      "text": "Artistas: UnwiFoxy11",
-      "icon": ""
+      "text": "[b]Artista:[/b] [color=#F472B6]UnwiFoxy11[/color]",
+      "icon": "info-icons/unwi"
     },
     {
-      "text": "Testers: Yrick",
-      "icon": ""
+      "text": "[b]Tester:[/b] [color=#34D399]Yrick[/color]",
+      "icon": "info-icons/yrik"
+    },
+    {
+      "text": "[b]Tester:[/b] [color=#F87171]Thiago[/color] [color=#DC2626](Fracasado que me hizo dar cuenta que ocupaba build de 32 bits para su cacharra)[/color]",
+      "icon": "info-icons/thiago"
     }
   ],
   "extraLines": [
-    "Descarga el proyecto completo desde GitHub o en GameBanana.",
-    "Si tienes problemas, contacta Jarret para solucionarlo."
+    "Descarga el proyecto completo desde [color=#60A5FA]GitHub[/color] o revisa futuras publicaciones en [color=#F59E0B]GameBanana[/color].",
+    "Si tienes problemas o quieres reportar algo, contacta a [b][color=#60A5FA]Jarret[/color][/b]."
   ]
 }

@@ -3,7 +3,6 @@ package android;
 import android.AppLogger;
 import android.AppModel.LoadResult;
 import android.AppModel.ProjectPaths;
-import android.AppConfig.ProjectInfoEntryData;
 import android.UiComponents.AnimationListView;
 import android.UiComponents.CardSection;
 import android.UiComponents.UiBrowseMode;
@@ -13,8 +12,6 @@ import android.UiComponents.UiToggle;
 import android.gestor.GestorArchivosBackend;
 import android.gestor.ImportadorMediaBackend;
 import android.AppConfig.ProjectInfoData;
-import haxe.io.Path;
-import openfl.Lib;
 import openfl.display.Bitmap;
 import openfl.display.Shape;
 import openfl.display.Sprite;
@@ -22,10 +19,8 @@ import openfl.display.StageAlign;
 import openfl.display.StageScaleMode;
 import openfl.events.Event;
 import openfl.events.MouseEvent;
-import openfl.net.URLRequest;
 import openfl.text.TextField;
 import openfl.text.TextFieldAutoSize;
-import openfl.text.TextFormat;
 
 class MainView extends Sprite {
 
@@ -79,16 +74,7 @@ class MainView extends Sprite {
     var infoButtonIcon:Bitmap;
 
     // ── Overlay About ─────────────────────────────────────────────────────────
-    var aboutOverlay:Sprite;
-    var aboutScrim:Shape;
-    var aboutCard:CardSection;
-    var aboutIntroField:TextField;
-    var aboutProjectField:TextField;
-    var aboutTeamList:Sprite;
-    var aboutExtraField:TextField;
-    var aboutLinkButton:UiButton;
-    var aboutCloseButton:UiButton;
-    var aboutVisible:Bool = false;
+    var projectInfoOverlay:ProjectInfoOverlay;
 
     // ── Estado ────────────────────────────────────────────────────────────────
     var paths:ProjectPaths;
@@ -212,12 +198,12 @@ class MainView extends Sprite {
         allButton          = new UiButton("Todo",           0x1D4ED8);
         noneButton         = new UiButton("Nada",           0x334155);
 
-        inputsCard.content.addChild(animationJsonInput);
+        inputsCard.content.addChild(animationJsonInput); // no funciona de aqui
         inputsCard.content.addChild(atlasJsonInput);
         inputsCard.content.addChild(atlasPngInput);
         inputsCard.content.addChild(animsXmlInput);
-        inputsCard.content.addChild(animsJsonInput);
-        inputsCard.content.addChild(exportFramesToggle);
+        inputsCard.content.addChild(animsJsonInput); // a aqui
+        inputsCard.content.addChild(exportFramesToggle); // estos demas si
         inputsCard.content.addChild(mediaImportButton);
         inputsCard.content.addChild(refreshButton);
         inputsCard.content.addChild(mediaExportButton);
@@ -281,43 +267,16 @@ class MainView extends Sprite {
         infoButtonIcon.smoothing = true;
         infoButton.addChild(infoButtonIcon);
 
-        infoButton.addEventListener(MouseEvent.CLICK, function(_) { toggleAbout(); });
+        infoButton.addEventListener(MouseEvent.CLICK, function(_) { projectInfoOverlay.toggle(); });
         addChild(infoButton);
     }
 
     function buildAboutOverlay():Void {
-        aboutOverlay = new Sprite();
-        aboutOverlay.visible = false;
-        addChild(aboutOverlay);
-
-        aboutScrim = new Shape();
-        aboutOverlay.addChild(aboutScrim);
-        aboutScrim.addEventListener(MouseEvent.CLICK, function(_) { toggleAbout(false); });
-
-        aboutCard = new CardSection(projectInfo.panelTitle);
-        aboutOverlay.addChild(aboutCard);
-
-        aboutIntroField   = createAboutField(16, 0xE2E8F0, false);
-        aboutProjectField = createAboutField(13, 0x93C5FD, false);
-        aboutProjectField.selectable = true;
-        aboutProjectField.mouseEnabled = true;
-        aboutTeamList   = new Sprite();
-        aboutExtraField = createAboutField(12, 0x94A3B8, false);
-
-        aboutLinkButton  = new UiButton(projectInfo.linkLabel, 0x0EA5E9);
-        aboutCloseButton = new UiButton("Cerrar", 0x334155);
-
-        aboutCard.content.addChild(aboutIntroField);
-        aboutCard.content.addChild(aboutProjectField);
-        aboutCard.content.addChild(aboutTeamList);
-        aboutCard.content.addChild(aboutExtraField);
-        aboutCard.content.addChild(aboutLinkButton);
-        aboutCard.content.addChild(aboutCloseButton);
-
-        aboutLinkButton.addEventListener(MouseEvent.CLICK,  function(_) { openProjectLink(); });
-        aboutCloseButton.addEventListener(MouseEvent.CLICK, function(_) { toggleAbout(false); });
-
-        refreshAboutText();
+        projectInfoOverlay = new ProjectInfoOverlay(projectInfo);
+        projectInfoOverlay.onStatus = function(text:String, color:Int) {
+            setStatus(text, color);
+        };
+        addChild(projectInfoOverlay);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -328,7 +287,7 @@ class MainView extends Sprite {
     function loadProjectFromNavbar(index:Int, folderPath:String):Void {
         setStatus("Cargando proyecto #" + (index + 1) + "…", 0x0F766E);
         try {
-            var newPaths = ImportadorMediaBackend.loadProjectAt(index);
+            var newPaths = ImportadorMediaBackend.loadProjectFromDirectory(folderPath);
             populateInputsFromPaths(newPaths);
             refreshProject();
         } catch (error:Dynamic) {
@@ -526,11 +485,9 @@ class MainView extends Sprite {
         navbar.x = margin;
         navbar.y = navbarY;
         navbar.setStageWidth(width);
-        // Asegurar que el navbar siempre quede al tope del display list
-        setChildIndex(navbar, numChildren - 1);
 
         // ── Cards — empiezan debajo del navbar ────────────────────────────────
-        var contentTop = navbarY + 48;  // botón navbar 38px + gap 10px
+        var contentTop = navbarY + 52;
         var gap  = 14.0;
         var fullW = width - margin * 2;
 
@@ -572,7 +529,7 @@ class MainView extends Sprite {
         layoutInputsCard();
         layoutAnimationsCard();
         layoutLogCard();
-        layoutAboutOverlay(width, height, margin);
+        projectInfoOverlay.layoutOverlay(width, height, margin);
         setStatus(statusField.text == null || statusField.text == "" ? "Listo" : statusField.text, statusColor);
     }
 
@@ -665,239 +622,6 @@ class MainView extends Sprite {
 
     function layoutLogCard():Void {
         consoleView.setSize(logCard.innerWidth, logCard.innerHeight);
-    }
-
-    function layoutAboutOverlay(width:Float, height:Float, margin:Float):Void {
-        aboutOverlay.visible = aboutVisible;
-
-        aboutScrim.graphics.clear();
-        aboutScrim.graphics.beginFill(0x020617, aboutVisible ? 0.80 : 0.0);
-        aboutScrim.graphics.drawRect(0, 0, width, height);
-        aboutScrim.graphics.endFill();
-
-        var panelW = Math.min(580.0, width - margin * 2);
-        var panelH = Math.min(height - margin * 2, height - margin * 2);
-
-        aboutCard.setSize(panelW, panelH);
-        aboutCard.x = (width - panelW) * 0.5;
-        aboutCard.y = margin;
-
-        var cw = aboutCard.innerWidth;
-        var y  = 0.0;
-
-        aboutIntroField.x = 0; aboutIntroField.y = y;
-        aboutIntroField.width  = cw;
-        aboutIntroField.height = measuredTextHeight(aboutIntroField, 52);
-        y += aboutIntroField.height + 10;
-
-        aboutProjectField.x = 0; aboutProjectField.y = y;
-        aboutProjectField.width  = cw;
-        aboutProjectField.height = measuredTextHeight(aboutProjectField, 32);
-        y += aboutProjectField.height + 12;
-
-        aboutTeamList.x = 0; aboutTeamList.y = y;
-        y += rebuildAboutTeamList(cw) + 12;
-
-        aboutExtraField.x = 0; aboutExtraField.y = y;
-        aboutExtraField.width  = cw;
-        aboutExtraField.height = measuredTextHeight(aboutExtraField, 36);
-        y += aboutExtraField.height + 12;
-
-        var buttonGap = 12.0;
-        var buttonW   = (cw - buttonGap) * 0.5;
-
-        aboutLinkButton.x  = 0;  aboutLinkButton.y  = y;
-        aboutLinkButton.setSize(buttonW, 46);
-
-        aboutCloseButton.x = buttonW + buttonGap; aboutCloseButton.y = y;
-        aboutCloseButton.setSize(buttonW, 46);
-    }
-
-    // ─── Imagen random por colaborador ────────────────────────────────────────
-    //  Se elige al abrir el About y se mantiene hasta que se cierra.
-    //  Formato de fila:  [imagen 300x300 máx]  [nombre\nrol]
-    // ─────────────────────────────────────────────────────────────────────────
-
-    static inline var COLLAB_IMG_MAX:Float = 300;
-    static inline var COLLAB_IMG_SIZE:Float = 80;  // tamaño fijo del cuadro de imagen
-    static inline var COLLAB_ROW_H:Float   = 90;   // altura fija de cada fila
-
-    function rebuildAboutTeamList(width:Float):Float {
-        while (aboutTeamList.numChildren > 0) aboutTeamList.removeChildAt(0);
-        if (projectInfo == null || projectInfo.teamEntries == null || projectInfo.teamEntries.length == 0) return 0;
-
-        var y = 0.0;
-        var gap = 10.0;
-        for (entry in projectInfo.teamEntries) {
-            var row = _makeCollabRow(entry, width);
-            row.y = y;
-            aboutTeamList.addChild(row);
-            y += COLLAB_ROW_H + gap;
-        }
-        return y > 0 ? y - gap : 0;
-    }
-
-    function _makeCollabRow(entry:ProjectInfoEntryData, width:Float):Sprite {
-        var row = new Sprite();
-        if (entry == null) return row;
-
-        // Fondo de fila sutil
-        var bg = new Shape();
-        bg.graphics.beginFill(0x111827, 0.7);
-        bg.graphics.drawRoundRect(0, 0, width, COLLAB_ROW_H, 12, 12);
-        bg.graphics.endFill();
-        row.addChild(bg);
-
-        // ── Imagen random de la carpeta ───────────────────────────────────────
-        var iconPath = entry.icon != null ? StringTools.trim(entry.icon) : "";
-        var imgX = 10.0;
-        var imgLoaded = false;
-
-        if (iconPath != "") {
-            var chosen = _pickRandomImage(iconPath);
-            if (chosen != null) {
-                try {
-                    var bmd = openfl.Assets.getBitmapData(chosen);
-                    if (bmd != null) {
-                        var scale = Math.min(
-                            COLLAB_IMG_MAX / bmd.width,
-                            COLLAB_IMG_MAX / bmd.height
-                        );
-                        // Limitar también al cuadro de la fila
-                        scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.width);
-                        scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.height);
-                        scale = Math.min(scale, 1.0);
-
-                        var bm = new Bitmap(bmd);
-                        bm.smoothing = true;
-                        bm.scaleX = scale;
-                        bm.scaleY = scale;
-                        // Centrar verticalmente en la fila
-                        bm.x = imgX + (COLLAB_IMG_SIZE - bm.width)  * 0.5;
-                        bm.y = (COLLAB_ROW_H - bm.height) * 0.5;
-                        row.addChild(bm);
-                        imgLoaded = true;
-                    }
-                } catch (_:Dynamic) {}
-            }
-        }
-
-        // Placeholder si no cargó imagen
-        if (!imgLoaded) {
-            var ph = new Shape();
-            ph.graphics.beginFill(0x1E293B);
-            ph.graphics.drawRoundRect(imgX, (COLLAB_ROW_H - COLLAB_IMG_SIZE) * 0.5,
-                COLLAB_IMG_SIZE, COLLAB_IMG_SIZE, 8, 8);
-            ph.graphics.endFill();
-            row.addChild(ph);
-        }
-
-        // ── Texto: nombre y rol ───────────────────────────────────────────────
-        var textX = imgX + COLLAB_IMG_SIZE + 14;
-        var textW = width - textX - 10;
-
-        // Separar "nombre — rol" si viene con " — "
-        var parts = entry.text.split(" — ");
-        var nombre = StringTools.trim(parts[0]);
-        var rol    = parts.length > 1 ? StringTools.trim(parts[1]) : "";
-
-        var nameField = new TextField();
-        AppFonts.applyUi(nameField, 16, 0xF8FAFC, true);
-        nameField.selectable   = false;
-        nameField.mouseEnabled = false;
-        nameField.text   = nombre;
-        nameField.x      = textX;
-        nameField.y      = rol != "" ? (COLLAB_ROW_H * 0.5 - 22) : (COLLAB_ROW_H - 22) * 0.5;
-        nameField.width  = textW;
-        nameField.height = 22;
-        row.addChild(nameField);
-
-        if (rol != "") {
-            var rolField = new TextField();
-            AppFonts.applyUi(rolField, 13, 0x94A3B8);
-            rolField.selectable   = false;
-            rolField.mouseEnabled = false;
-            rolField.text   = rol;
-            rolField.x      = textX;
-            rolField.y      = nameField.y + 24;
-            rolField.width  = textW;
-            rolField.height = 18;
-            row.addChild(rolField);
-        }
-
-        return row;
-    }
-
-    /**
-     * Devuelve un asset path elegido al azar de los PNG/JPG/GIF
-     * que haya en la carpeta dada. Devuelve null si no hay ninguno.
-     */
-    function _pickRandomImage(folderPath:String):String {
-        var exts   = ["png", "jpg", "jpeg", "gif"];
-        var prefix = StringTools.startsWith(folderPath, "assets/")
-            ? folderPath.substr("assets/".length)
-            : folderPath;
-        if (!StringTools.endsWith(prefix, "/")) prefix += "/";
-
-        var results:Array<String> = [];
-        try {
-            for (assetPath in lime.utils.Assets.list()) {
-                if (!StringTools.startsWith(assetPath, prefix)) continue;
-                var ext = haxe.io.Path.extension(assetPath).toLowerCase();
-                if (exts.indexOf(ext) >= 0) results.push(assetPath);
-            }
-        } catch (_:Dynamic) {}
-
-        if (results.length == 0) return null;
-
-        // Random simple con Std.random
-        return results[Std.random(results.length)];
-    }
-
-    function createAboutField(size:Int, color:Int, bold:Bool):TextField {
-        var field = new TextField();
-        AppFonts.applyUi(field, size, color, bold);
-        field.textColor  = color;
-        field.selectable = false;
-        field.mouseEnabled = false;
-        field.multiline  = true;
-        field.wordWrap   = true;
-        return field;
-    }
-
-    function refreshAboutText():Void {
-        aboutIntroField.text   = projectInfo.projectName + "\n" + projectInfo.overviewLines.join("\n");
-        aboutProjectField.text = "Descarga del proyecto\n" + projectInfo.projectUrl;
-        aboutExtraField.text   = projectInfo.extraLines.join("\n");
-    }
-
-    function measuredTextHeight(field:TextField, minHeight:Float):Float {
-        return Math.max(minHeight, field.textHeight + 10);
-    }
-
-    function toggleAbout(?force:Bool):Void {
-        aboutVisible = force == null ? !aboutVisible : force;
-        if (aboutVisible) {
-            setChildIndex(aboutOverlay, numChildren - 1);
-            refreshAboutText();
-            aboutCard.content.y = 0; // reset scroll al abrir
-        }
-        layout();
-    }
-
-    function openProjectLink():Void {
-        if (projectInfo == null || StringTools.trim(projectInfo.projectUrl) == "") {
-            AppLogger.warn("No hay link configurado para el proyecto.");
-            setStatus("Sin link configurado", 0x7C2D12);
-            return;
-        }
-        try {
-            Lib.getURL(new URLRequest(projectInfo.projectUrl), "_blank");
-            AppLogger.log("Abriendo proyecto: " + projectInfo.projectUrl);
-        } catch (error:Dynamic) {
-            AppLogger.err("No pude abrir el link: " + Std.string(error));
-            setStatus("No pude abrir el link", 0x7C2D12);
-        }
     }
 
     function drawBackground(width:Float, height:Float):Void {

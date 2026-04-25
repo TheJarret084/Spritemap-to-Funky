@@ -22,6 +22,10 @@ class AppFonts {
         apply(field, resolveMonoName(), size, color, bold);
     }
 
+    public static function getUiFontName(?bold:Bool = false):String {
+        return resolveUiName(bold);
+    }
+
     static function apply(field:TextField, fontName:String, size:Int, color:Int, bold:Bool):Void {
         field.embedFonts = true;
         field.defaultTextFormat = new TextFormat(fontName, size, color, bold);

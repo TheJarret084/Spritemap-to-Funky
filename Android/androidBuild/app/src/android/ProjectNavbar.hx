@@ -115,13 +115,14 @@ class ProjectNavbar extends Sprite {
         _entries = [];
 
         #if sys
-        var root = android.gestor.ImportadorMediaBackend.getMediaSpritemapsDir();
-        if (GestorArchivosBackend.directoryExists(root)) {
-            var dirs:Array<String> = [];
+        var roots = AppConfig.getSpritemapsDirCandidates();
+        var dirs:Array<String> = [];
+        for (root in roots) {
+            if (!GestorArchivosBackend.directoryExists(root)) continue;
             _collectDirs(root, dirs, 0, 3);
-            dirs.sort(GestorArchivosBackend.compareStrings);
-            for (d in dirs) _entries.push(new ProjectEntry(d));
         }
+        dirs.sort(GestorArchivosBackend.compareStrings);
+        for (d in _uniquePaths(dirs)) _entries.push(new ProjectEntry(d));
         #end
 
         var total    = _entries.length;
@@ -256,8 +257,8 @@ class ProjectNavbar extends Sprite {
         _emptyField.x = 12;
         _emptyField.y = 12;
         _emptyField.width  = PANEL_W - 24;
-        _emptyField.height = 50;
-        _emptyField.text   = "No hay carpetas en:\n" + android.gestor.ImportadorMediaBackend.getMediaSpritemapsDir();
+        _emptyField.height = 96;
+        _emptyField.text   = "No hay carpetas en:\n" + AppConfig.getSpritemapsDirCandidates().join("\n");
 
         var y = 8.0;
         for (i in 0..._entries.length) {
@@ -267,7 +268,7 @@ class ProjectNavbar extends Sprite {
             y += ROW_H + ROW_GAP;
         }
 
-        var contentH = isEmpty ? 74.0 : (y + 8);
+        var contentH = isEmpty ? 120.0 : (y + 8);
         var panelH   = Math.min(contentH, PANEL_MAX_H);
 
         _panelBg.graphics.clear();
@@ -373,5 +374,14 @@ class ProjectNavbar extends Sprite {
         return GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_1]))
             || GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_2]))
             || GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_3]));
+    }
+
+    function _uniquePaths(paths:Array<String>):Array<String> {
+        var out:Array<String> = [];
+        for (path in paths) {
+            if (path == null || StringTools.trim(path) == "") continue;
+            if (out.indexOf(path) == -1) out.push(path);
+        }
+        return out;
     }
 }

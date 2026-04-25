@@ -29,7 +29,6 @@
 
     <source path="src" />
     <java path="android/java" if="android" />
-    <template path="templates/app-build.gradle" rename="app/build.gradle" if="android" />
     <!-- ASSETS -->
     <assets path="assets" rename="assets" />
 
