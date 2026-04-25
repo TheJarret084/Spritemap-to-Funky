@@ -35,5 +35,6 @@
 
     <haxelib name="openfl" />
     <haxelib name="lime" />
+    <haxelib name="hxdiscord_rpc" />
 
 </project>

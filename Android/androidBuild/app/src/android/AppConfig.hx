@@ -45,6 +45,16 @@ class AppConfig {
     public static inline var APP_SUBTITLE:String   = "Convierte el spritemap de Adobe Animate en frames y ZIPs listos desde Android.";
     public static inline var PACKAGE_NAME:String   = "com.thejarretlabs.spritemaptofunky";
 
+    // ── Discord RPC (desktop solamente) ─────────────────────────────────────
+    //   Pon aquí el Application ID real de tu app de Discord Developer Portal.
+    public static inline var DISCORD_APP_ID:String            = "";
+    public static inline var DISCORD_DEFAULT_DETAILS:String   = "Editando spritemaps";
+    public static inline var DISCORD_DEFAULT_STATE:String     = "Desktop build";
+    public static inline var DISCORD_LARGE_IMAGE_KEY:String   = "";
+    public static inline var DISCORD_LARGE_IMAGE_TEXT:String  = "Spritemap to Funky";
+    public static inline var DISCORD_SMALL_IMAGE_KEY:String   = "";
+    public static inline var DISCORD_SMALL_IMAGE_TEXT:String  = "";
+
     // ── Assets ────────────────────────────────────────────────────────────────
     public static inline var SPLASH_ASSET_PATH:String     = "other/cualeselproblema.jpg";
     public static inline var BROWSE_ICON_ASSET:String     = "buttons/addFilesExport.png";
