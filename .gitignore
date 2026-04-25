@@ -67,3 +67,6 @@ out*/
 *.jks
 /Android/androidBuild/signing.properties
 /Android/androidBuild/app/signing.properties
+
+# cosas
+/Android/androidBuild/bruh/
