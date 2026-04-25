@@ -79,8 +79,8 @@ class AppLogger {
         if (line == null) return;
 
         // También al logcat de Android en builds de debug
-        #if (android && debug)
-        try { lime.system.System.print(line); } catch (_:Dynamic) {}
+        #if (android && debug && sys)
+        try { Sys.println(line); } catch (_:Dynamic) {}
         #end
 
         // Buffer
