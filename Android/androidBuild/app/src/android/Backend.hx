@@ -1,12 +1,11 @@
 package android;
 
+import android.gestor.GestorArchivosBackend;
+import android.gestor.ImportadorMediaBackend;
 import backend.Api;
 import backend.Tools;
 import haxe.Json;
-import haxe.ds.List;
 import haxe.io.Path;
-import haxe.zip.Entry;
-import haxe.zip.Writer;
 import android.AppModel.AnimationChoice;
 import android.AppModel.ExportResult;
 import android.AppModel.LoadResult;
@@ -14,7 +13,6 @@ import android.AppModel.ProjectPaths;
 
 #if sys
 import sys.FileSystem;
-import sys.io.File;
 #end
 
 class Backend {
@@ -25,48 +23,20 @@ class Backend {
     }
 
     public static function resetWorkspace():Void {
-        #if android
-        AndroidFilePicker.clearWorkspace();
-        #end
+        GestorArchivosBackend.resetWorkspace();
     }
 
     public static function cleanupAfterSave():Void {
-        resetWorkspace();
+        GestorArchivosBackend.cleanupAfterSave();
     }
 
     public static function getWorkspaceRoot():String {
-        #if android
-        var fromBridge = AndroidFilePicker.getWorkspaceRoot();
-        if (!isBlank(fromBridge)) return fromBridge;
-        #end
-
-        #if sys
-        return Path.join([Sys.getCwd(), "android-workspace"]);
-        #else
-        return "android-workspace";
-        #end
+        return GestorArchivosBackend.getWorkspaceRoot();
     }
 
     /** Directorio temporal para frames procesados — siempre en storage interno */
     public static function getProcessingOutputDir():String {
-        #if android
-        var dir = AppConfig.getProcessedDir();
-        Tools.ensureDirectory(dir);
-        return dir;
-        #else
-        return Path.join([getWorkspaceRoot(), "processed"]);
-        #end
-    }
-
-    /** Directorio de exports finales — en Android/media para que el usuario lo vea */
-    static function getExportsDir():String {
-        #if android
-        var dir = AppConfig.getExportsDir();
-        Tools.ensureDirectory(dir);
-        return dir;
-        #else
-        return Path.join([getWorkspaceRoot(), "exports"]);
-        #end
+        return GestorArchivosBackend.getProcessingDir();
     }
 
     public static function loadProject(paths:ProjectPaths):LoadResult {
@@ -78,8 +48,28 @@ class Backend {
     }
 
     public static function exportProject(paths:ProjectPaths, choices:Array<AnimationChoice>, exportFrames:Bool):ExportResult {
+        return exportProjectInternal(paths, choices, exportFrames, getProcessingOutputDir(), true);
+    }
+
+    public static function exportProjectToMedia(paths:ProjectPaths, choices:Array<AnimationChoice>, exportFrames:Bool):ExportResult {
+        return exportProjectInternal(
+            paths,
+            choices,
+            exportFrames,
+            ImportadorMediaBackend.buildProcessedOutputDir(paths),
+            false
+        );
+    }
+
+    static function exportProjectInternal(
+        paths:ProjectPaths,
+        choices:Array<AnimationChoice>,
+        exportFrames:Bool,
+        targetOutputDir:String,
+        stageZip:Bool
+    ):ExportResult {
         var normalizedPaths = normalizePaths(paths);
-        normalizedPaths.outputDir = getProcessingOutputDir();
+        normalizedPaths.outputDir = isBlank(targetOutputDir) ? getProcessingOutputDir() : targetOutputDir;
         clearDirectory(normalizedPaths.outputDir);
 
         var request:Dynamic = buildBaseRequest(normalizedPaths);
@@ -90,16 +80,16 @@ class Backend {
         var result = new ExportResult(
             stringField(response, "log"),
             stringField(response, "outputDir"),
-            intField(response, "filesWritten", 0)
+            intField(response, "filesWritten", 0),
+            stringField(response, "zipPath")
         );
 
-        if (result.filesWritten > 0) {
+        if (result.filesWritten > 0 && !isBlank(result.zipPath)) {
             var archiveName = buildArchiveName(normalizedPaths);
-            var archivePath = Path.join([getExportsDir(), archiveName]);
-            clearFile(archivePath);
-            zipDirectory(result.outputDir, archivePath);
             result.archiveName = archiveName;
-            result.archivePath = archivePath;
+            result.archivePath = stageZip
+                ? GestorArchivosBackend.stageExportZip(result.zipPath, archiveName)
+                : result.zipPath;
         }
 
         return result;
@@ -208,84 +198,11 @@ class Backend {
         return Tools.sanitizeName(base) + ".zip";
     }
 
-    static function zipDirectory(sourceDir:String, archivePath:String):Void {
-        #if sys
-        Tools.ensureDirectory(Path.directory(archivePath));
-
-        var entries = new List<Entry>();
-        var files = collectFiles(sourceDir);
-        for (path in files) {
-            var bytes = File.getBytes(path);
-            var relative = toZipPath(makeRelativePath(sourceDir, path));
-            var entry:Entry = {
-                fileName: relative,
-                fileSize: bytes.length,
-                fileTime: Date.now(),
-                compressed: false,
-                dataSize: bytes.length,
-                data: bytes,
-                crc32: null
-            };
-            haxe.zip.Tools.compress(entry, 9);
-            entries.add(entry);
-        }
-
-        var output = File.write(archivePath, true);
-        new Writer(output).write(entries);
-        output.close();
-        #end
-    }
-
-    static function collectFiles(path:String):Array<String> {
-        #if sys
-        var results:Array<String> = [];
-        if (!FileSystem.exists(path)) return results;
-
-        if (!FileSystem.isDirectory(path)) {
-            results.push(path);
-            return results;
-        }
-
-        for (name in FileSystem.readDirectory(path)) {
-            var child = Path.join([path, name]);
-            if (FileSystem.isDirectory(child)) {
-                results = results.concat(collectFiles(child));
-            } else {
-                results.push(child);
-            }
-        }
-
-        return results;
-        #else
-        return [];
-        #end
-    }
-
-    static function makeRelativePath(root:String, path:String):String {
-        var normalizedRoot = StringTools.replace(Path.normalize(root), "\\", "/");
-        var normalizedPath = StringTools.replace(Path.normalize(path), "\\", "/");
-        var prefix = normalizedRoot;
-        if (!StringTools.endsWith(prefix, "/")) prefix += "/";
-        return StringTools.startsWith(normalizedPath, prefix) ? normalizedPath.substr(prefix.length) : normalizedPath;
-    }
-
-    static function toZipPath(value:String):String {
-        return StringTools.replace(value, "\\", "/");
-    }
-
     static function clearDirectory(path:String):Void {
         #if sys
         if (isBlank(path)) return;
         if (FileSystem.exists(path)) deleteRecursively(path);
         Tools.ensureDirectory(path);
-        #end
-    }
-
-    static function clearFile(path:String):Void {
-        #if sys
-        if (!isBlank(path) && FileSystem.exists(path) && !FileSystem.isDirectory(path)) {
-            FileSystem.deleteFile(path);
-        }
         #end
     }
 

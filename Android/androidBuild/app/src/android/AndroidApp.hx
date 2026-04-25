@@ -1,5 +1,7 @@
 package android;
 
+import android.AppLogger;
+import android.gestor.ImportadorMediaBackend;
 import haxe.Timer;
 import lime.system.System;
 import lime.utils.Assets as LimeAssets;
@@ -16,12 +18,16 @@ class AndroidApp {
 
     public function new(host:Application) {
         this.host = host;
+
+        // Instalar el interceptor de trace() lo antes posible.
+        // A partir de aquí TODOS los trace() van a AppLogger y de ahí a la UI.
+        AppLogger.install();
     }
 
     public function onWindowCreate():Void {
         #if android
         if (host.window != null) {
-            host.window.width = 720;
+            host.window.width  = 720;
             host.window.height = 1280;
         }
         #end
@@ -29,6 +35,12 @@ class AndroidApp {
 
     public function onPreloadComplete():Void {
         if (mounted) return;
+
+        // ── Crear carpetas de media en el primer inicio ───────────────────────
+        //    Silencioso si ya existen; loguea si las crea.
+        #if android
+        ImportadorMediaBackend.ensureMediaDirectories();
+        #end
 
         #if !android
         mount(new UnsupportedTargetView());
@@ -41,6 +53,9 @@ class AndroidApp {
         if (Assets.exists(splashAsset) || LimeAssets.exists(splashAsset)) {
             mount(new SplashView(splashAsset, function() {
                 #if caros
+                // ── Caros Edition ─────────────────────────────────────────────
+                //   Solo activo con:  lime build android -D caros
+                //   NO se dispara en builds normales ni en -debug.
                 startCarosEdition();
                 #else
                 replaceWith(new MainView());
@@ -56,6 +71,10 @@ class AndroidApp {
         #end
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Helpers de montaje
+    // ─────────────────────────────────────────────────────────────────────────
+
     function mount(view:Sprite):Void {
         if (mounted) return;
         mounted = true;
@@ -63,54 +82,44 @@ class AndroidApp {
     }
 
     function replaceWith(view:Sprite):Void {
-        while (Lib.current.numChildren > 0) {
+        while (Lib.current.numChildren > 0)
             Lib.current.removeChildAt(Lib.current.numChildren - 1);
-        }
         mounted = false;
         mount(view);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Caros Edition  (solo compila con -D caros)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #if caros
     function startCarosEdition():Void {
+        AppLogger.warn("Caros Edition activada.");
+
         var carosVideoAsset = AppConfig.resolveAssetPath(AppConfig.CAROS_VIDEO_ASSET);
+        var destPath        = AppConfig.getCarosVideoPath();
 
-        #if android
-        var destPath = AppConfig.getCarosVideoPath();
-
-        // Extraer el video del APK al storage interno si no existe aún
+        // Extraer el video del APK al storage interno si todavía no existe
         if (!sys.FileSystem.exists(destPath)) {
             var bytes = Assets.getBytes(carosVideoAsset);
-            if (bytes == null)
-                bytes = LimeAssets.getBytes(carosVideoAsset);
-
+            if (bytes == null) bytes = LimeAssets.getBytes(carosVideoAsset);
             if (bytes != null) {
                 try {
-                    var output = sys.io.File.write(destPath, true);
-                    output.write(bytes);
-                    output.close();
+                    var out = sys.io.File.write(destPath, true);
+                    out.write(bytes);
+                    out.close();
                 } catch (_:Dynamic) {}
             }
         }
 
-        // Abrir el video si se extrajo correctamente
         if (sys.FileSystem.exists(destPath)) {
-            try {
-                System.openFile(destPath);
-            } catch (_:Dynamic) {}
+            try { System.openFile(destPath); } catch (_:Dynamic) {}
         }
-
-        #else
-        if (Assets.exists(carosVideoAsset) || LimeAssets.exists(carosVideoAsset)) {
-            try {
-                System.openFile(carosVideoAsset);
-            } catch (_:Dynamic) {}
-        }
-        #end
 
         Timer.delay(function() {
             try {
-                if (Lib.application != null && Lib.application.window != null) {
+                if (Lib.application != null && Lib.application.window != null)
                     Lib.application.window.alert(AppConfig.CAROS_DIALOG_MESSAGE, AppConfig.CAROS_DIALOG_TITLE);
-                }
             } catch (_:Dynamic) {}
 
             Timer.delay(function() {
@@ -118,22 +127,28 @@ class AndroidApp {
                 Sys.exit(0);
                 #end
             }, 450);
+
         }, AppConfig.CAROS_VIDEO_DURATION_MS);
     }
+    #end
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Vista de plataforma no soportada
+// ─────────────────────────────────────────────────────────────────────────────
 
 class UnsupportedTargetView extends Sprite {
     public function new() {
         super();
 
         var text = new TextField();
-        text.defaultTextFormat = new TextFormat("_sans", 20, 0xFFFFFF, true);
+        AppFonts.applyUi(text, 20, 0xFFFFFF, true);
         text.selectable = false;
-        text.multiline = true;
-        text.wordWrap = true;
-        text.width = 420;
-        text.height = 120;
-        text.text = "Este build está hecho sólo para Android.";
+        text.multiline  = true;
+        text.wordWrap   = true;
+        text.width      = 420;
+        text.height     = 120;
+        text.text       = "Este build está hecho sólo para Android.";
         text.x = 40;
         text.y = 80;
         addChild(text);

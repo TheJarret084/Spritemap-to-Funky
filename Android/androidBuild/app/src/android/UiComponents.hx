@@ -1,6 +1,7 @@
 package android;
 
 import android.AppModel.AnimationChoice;
+import android.gestor.GestorArchivosBackend;
 import openfl.display.Shape;
 import openfl.display.Sprite;
 import openfl.events.Event;
@@ -32,7 +33,7 @@ class CardSection extends Sprite {
         addChild(background);
 
         titleField = new TextField();
-        titleField.defaultTextFormat = new TextFormat("_sans", 20, 0xF9FAFB, true);
+        AppFonts.applyUi(titleField, 20, 0xF9FAFB, true);
         titleField.selectable = false;
         titleField.mouseEnabled = false;
         titleField.text = title;
@@ -86,7 +87,7 @@ class UiButton extends Sprite {
         addChild(background);
 
         labelField = new TextField();
-        labelField.defaultTextFormat = new TextFormat("_sans", 18, 0xFFFFFF, true);
+        AppFonts.applyUi(labelField, 18, 0xFFFFFF, true);
         labelField.selectable = false;
         labelField.mouseEnabled = false;
         labelField.autoSize = TextFieldAutoSize.LEFT;
@@ -176,7 +177,7 @@ class UiInput extends Sprite {
         this.browseTitle = browseTitle != null ? browseTitle : label;
 
         labelField = new TextField();
-        labelField.defaultTextFormat = new TextFormat("_sans", 15, 0xCBD5E1, true);
+        AppFonts.applyUi(labelField, 15, 0xCBD5E1, true);
         labelField.selectable = false;
         labelField.mouseEnabled = false;
         labelField.text = label;
@@ -187,7 +188,7 @@ class UiInput extends Sprite {
 
         field = new TextField();
         field.type = TextFieldType.INPUT;
-        field.defaultTextFormat = new TextFormat("_sans", 16, 0xE2E8F0);
+        AppFonts.applyUi(field, 16, 0xE2E8F0);
         field.textColor = 0xE2E8F0;
         field.multiline = false;
         field.wordWrap = false;
@@ -197,7 +198,7 @@ class UiInput extends Sprite {
         addChild(field);
 
         hintField = new TextField();
-        hintField.defaultTextFormat = new TextFormat("_sans", 12, 0x64748B);
+        AppFonts.applyUi(hintField, 12, 0x64748B);
         hintField.selectable = false;
         hintField.mouseEnabled = false;
         hintField.text = hint;
@@ -241,18 +242,28 @@ class UiInput extends Sprite {
 
     function openAndroidPicker():Void {
         #if android
-        var ok = AndroidFilePicker.openFile(
+        android.AppLogger.log("Abriendo picker: " + browseTitle + " (filtro: " + browseFilter + ")");
+
+        var ok = GestorArchivosBackend.openFile(
             browseTitle,
             browseFilter,
-            function(path:String) {
-                if (path != null && path != "") field.text = path;
+            function(file) {
+                if (file != null && file.workspacePath != null && file.workspacePath != "") {
+                    field.text = file.workspacePath;
+                    android.AppLogger.log("Campo llenado con: " + file.workspacePath);
+                } else {
+                    android.AppLogger.err("Picker: onComplete con file nulo o ruta vacía");
+                    field.text = "[archivo no disponible]";
+                }
             },
             function(message:String) {
+                android.AppLogger.err("Picker error: " + message);
                 field.text = "[" + message + "]";
             }
         );
 
         if (!ok) {
+            android.AppLogger.err("Picker: openFile devolvió false (JNI no disponible)");
             field.text = "[El explorador del teléfono no está disponible]";
         }
         #end
@@ -320,7 +331,7 @@ class UiToggle extends Sprite {
         addChild(box);
 
         labelField = new TextField();
-        labelField.defaultTextFormat = new TextFormat("_sans", 16, 0xE2E8F0, true);
+        AppFonts.applyUi(labelField, 16, 0xE2E8F0, true);
         labelField.selectable = false;
         labelField.mouseEnabled = false;
         labelField.text = label;
@@ -406,7 +417,7 @@ class AnimationListView extends Sprite {
         viewport.mask = viewportMask;
 
         hintField = new TextField();
-        hintField.defaultTextFormat = new TextFormat("_sans", 14, 0x64748B);
+        AppFonts.applyUi(hintField, 14, 0x64748B);
         hintField.selectable = false;
         hintField.mouseEnabled = false;
         hintField.text = "No hay animaciones cargadas.";
@@ -518,7 +529,7 @@ class AnimationListView extends Sprite {
         row.addChild(check);
 
         var title = new TextField();
-        title.defaultTextFormat = new TextFormat("_sans", 16, 0xF8FAFC, true);
+        AppFonts.applyUi(title, 16, 0xF8FAFC, true);
         title.selectable = false;
         title.mouseEnabled = false;
         title.text = item.name;
@@ -529,7 +540,7 @@ class AnimationListView extends Sprite {
         row.addChild(title);
 
         var subtitle = new TextField();
-        subtitle.defaultTextFormat = new TextFormat("_sans", 12, 0x94A3B8);
+        AppFonts.applyUi(subtitle, 12, 0x94A3B8);
         subtitle.selectable = false;
         subtitle.mouseEnabled = false;
         subtitle.text = item.source + buildIndicesLabel(item.indices);

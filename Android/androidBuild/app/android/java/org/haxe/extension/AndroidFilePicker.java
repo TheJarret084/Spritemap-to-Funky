@@ -40,7 +40,11 @@ public class AndroidFilePicker extends Extension {
                 try {
                     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    intent.setType(resolveMimeType(pendingExtension));
+                    String[] mimeTypes = resolveMimeTypes(pendingExtension);
+                    intent.setType("*/*");
+                    if (mimeTypes.length > 0) {
+                        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+                    }
                     intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
@@ -297,6 +301,19 @@ public class AndroidFilePicker extends Extension {
         if (extension.equals("jpg") || extension.equals("jpeg")) return "image/jpeg";
         if (extension.equals("zip")) return "application/zip";
         return "*/*";
+    }
+
+    private static String[] resolveMimeTypes(String extension) {
+        if (extension == null || extension.isEmpty()) {
+            return new String[0];
+        }
+
+        if (extension.equals("json")) return new String[] { "application/json", "text/json", "text/plain" };
+        if (extension.equals("xml")) return new String[] { "text/xml", "application/xml", "text/plain" };
+        if (extension.equals("png")) return new String[] { "image/png" };
+        if (extension.equals("jpg") || extension.equals("jpeg")) return new String[] { "image/jpeg" };
+        if (extension.equals("zip")) return new String[] { "application/zip", "application/octet-stream" };
+        return new String[] { resolveMimeType(extension) };
     }
 
     private static String resolveMimeTypeFromName(String name) {

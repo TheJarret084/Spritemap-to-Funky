@@ -1,5 +1,6 @@
 package android;
 
+import android.AppLogger;
 import android.AppModel.LoadResult;
 import android.AppModel.ProjectPaths;
 import android.AppConfig.ProjectInfoEntryData;
@@ -9,7 +10,10 @@ import android.UiComponents.UiBrowseMode;
 import android.UiComponents.UiButton;
 import android.UiComponents.UiInput;
 import android.UiComponents.UiToggle;
+import android.gestor.GestorArchivosBackend;
+import android.gestor.ImportadorMediaBackend;
 import android.AppConfig.ProjectInfoData;
+import haxe.io.Path;
 import openfl.Lib;
 import openfl.display.Bitmap;
 import openfl.display.Shape;
@@ -24,18 +28,27 @@ import openfl.text.TextFieldAutoSize;
 import openfl.text.TextFormat;
 
 class MainView extends Sprite {
+
+    // ── Capas base ────────────────────────────────────────────────────────────
     var backgroundLayer:Shape;
     var accentLayer:Shape;
 
+    // ── Header ────────────────────────────────────────────────────────────────
     var titleField:TextField;
     var subtitleField:TextField;
     var statusBadge:Shape;
     var statusField:TextField;
 
+    // ── Navbar dropdown de proyectos (debajo del header) ─────────────────────
+    var navbar:ProjectNavbar;
+    var navbarY:Float = 0; // posición Y calculada en layout
+
+    // ── Cards ─────────────────────────────────────────────────────────────────
     var inputsCard:CardSection;
     var animationsCard:CardSection;
     var logCard:CardSection;
 
+    // ── Inputs de archivos ────────────────────────────────────────────────────
     var animationJsonInput:UiInput;
     var atlasJsonInput:UiInput;
     var atlasPngInput:UiInput;
@@ -43,23 +56,29 @@ class MainView extends Sprite {
     var animsJsonInput:UiInput;
     var filterInput:UiInput;
 
+    // ── Controles ─────────────────────────────────────────────────────────────
     var exportFramesToggle:UiToggle;
+    var mediaImportButton:UiButton;
     var refreshButton:UiButton;
+    var mediaExportButton:UiButton;
     var exportButton:UiButton;
     var allButton:UiButton;
     var noneButton:UiButton;
 
+    // ── Lista de animaciones ──────────────────────────────────────────────────
     var animationsView:AnimationListView;
     var selectionField:TextField;
     var helperField:TextField;
 
-    var logField:TextField;
-    var logLines:Array<String> = [];
+    // ── Consola visual (reemplaza logField anterior) ──────────────────────────
+    var consoleView:ConsoleView;
 
+    // ── Botón About ───────────────────────────────────────────────────────────
     var infoButton:Sprite;
     var infoButtonBg:Shape;
     var infoButtonIcon:Bitmap;
 
+    // ── Overlay About ─────────────────────────────────────────────────────────
     var aboutOverlay:Sprite;
     var aboutScrim:Shape;
     var aboutCard:CardSection;
@@ -71,13 +90,17 @@ class MainView extends Sprite {
     var aboutCloseButton:UiButton;
     var aboutVisible:Bool = false;
 
+    // ── Estado ────────────────────────────────────────────────────────────────
     var paths:ProjectPaths;
     var projectInfo:ProjectInfoData;
     var statusColor:Int = 0x334155;
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Inicialización
+    // ─────────────────────────────────────────────────────────────────────────
+
     public function new() {
         super();
-
         if (stage != null) init();
         else addEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
     }
@@ -89,26 +112,37 @@ class MainView extends Sprite {
 
     function init():Void {
         stage.scaleMode = StageScaleMode.NO_SCALE;
-        stage.align = StageAlign.TOP_LEFT;
-        stage.color = AppConfig.BACKGROUND_COLOR;
+        stage.align     = StageAlign.TOP_LEFT;
+        stage.color     = AppConfig.BACKGROUND_COLOR;
 
-        paths = Backend.createDefaultPaths();
+        paths       = Backend.createDefaultPaths();
         projectInfo = AppConfig.getProjectInfo();
 
         buildChrome();
         buildInputs();
         buildAnimations();
         buildLog();
+        buildNavbar();
         buildAboutOverlay();
 
         stage.addEventListener(Event.RESIZE, onResize);
         layout();
 
-        appendLog("Selecciona los archivos del proyecto.");
-        appendLog("La app los copia al storage interno de Android y al final guarda un ZIP.");
-        appendLog("La build movil exporta directo a ZIP; el flujo de Aseprite ya no aplica aqui.");
+        // Logs iniciales (van a AppLogger → llegan a ConsoleView automáticamente)
+        AppLogger.log("Selecciona un proyecto desde el panel lateral ←");
+        AppLogger.log("O usa los inputs manuales en la card 'Archivos'.");
+        AppLogger.log("Entrada media: " + ImportadorMediaBackend.getMediaSpritemapsDir());
+        AppLogger.log("Salida media:  " + ImportadorMediaBackend.getMediaProcessedDir());
+
         setStatus("Esperando archivos", 0x475569);
+
+        // Escanear proyectos al inicio
+        navbar.refresh();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Construcción de UI
+    // ─────────────────────────────────────────────────────────────────────────
 
     function buildChrome():Void {
         backgroundLayer = new Shape();
@@ -118,18 +152,18 @@ class MainView extends Sprite {
         addChild(accentLayer);
 
         titleField = new TextField();
-        titleField.defaultTextFormat = new TextFormat("_sans", 34, 0xF8FAFC, true);
-        titleField.selectable = false;
+        AppFonts.applyUi(titleField, 34, 0xF8FAFC, true);
+        titleField.selectable   = false;
         titleField.mouseEnabled = false;
         titleField.text = AppConfig.APP_TITLE;
         addChild(titleField);
 
         subtitleField = new TextField();
-        subtitleField.defaultTextFormat = new TextFormat("_sans", 15, 0x94A3B8);
-        subtitleField.selectable = false;
+        AppFonts.applyUi(subtitleField, 15, 0x94A3B8);
+        subtitleField.selectable   = false;
         subtitleField.mouseEnabled = false;
-        subtitleField.multiline = true;
-        subtitleField.wordWrap = true;
+        subtitleField.multiline    = true;
+        subtitleField.wordWrap     = true;
         subtitleField.text = AppConfig.APP_SUBTITLE;
         addChild(subtitleField);
 
@@ -137,38 +171,46 @@ class MainView extends Sprite {
         addChild(statusBadge);
 
         statusField = new TextField();
-        statusField.defaultTextFormat = new TextFormat("_sans", 13, 0xE2E8F0, true);
-        statusField.selectable = false;
+        AppFonts.applyUi(statusField, 13, 0xE2E8F0, true);
+        statusField.selectable   = false;
         statusField.mouseEnabled = false;
-        statusField.autoSize = TextFieldAutoSize.LEFT;
+        statusField.autoSize     = TextFieldAutoSize.LEFT;
         addChild(statusField);
 
-        inputsCard = new CardSection("Archivos");
-        addChild(inputsCard);
-
+        inputsCard     = new CardSection("Archivos");
         animationsCard = new CardSection("Animaciones");
+        logCard        = new CardSection("Consola");
+        addChild(inputsCard);
         addChild(animationsCard);
-
-        logCard = new CardSection("Log");
         addChild(logCard);
 
         buildInfoButton();
     }
 
+    function buildNavbar():Void {
+        navbar = new ProjectNavbar();
+        navbar.onProjectSelected = function(index:Int, folderPath:String) {
+            loadProjectFromNavbar(index, folderPath);
+        };
+        addChild(navbar);
+    }
+
     function buildInputs():Void {
-        animationJsonInput = new UiInput("Animation.json", "Selecciona el timeline principal.", OPEN_FILE, "json", "Selecciona Animation.json");
-        atlasJsonInput = new UiInput("spritemap1.json", "Selecciona el atlas JSON.", OPEN_FILE, "json", "Selecciona spritemap1.json");
-        atlasPngInput = new UiInput("Atlas PNG", "Si lo dejas vacío, se resuelve desde spritemap1.json.", OPEN_FILE, "png", "Selecciona atlas PNG");
-        animsXmlInput = new UiInput("anims.xml (opcional)", "Lista estilo Codename.", OPEN_FILE, "xml", "Selecciona anims.xml");
-        animsJsonInput = new UiInput("anims.json (opcional)", "Lista estilo Psych/FNF.", OPEN_FILE, "json", "Selecciona anims.json");
-        filterInput = new UiInput("Filtro", "Filtra por nombre o símbolo.", NONE);
+        animationJsonInput = new UiInput("animations.json",      "Selecciona animations.json",        OPEN_FILE, "json", "Selecciona animations.json");
+        atlasJsonInput     = new UiInput("spritemap.json",       "Selecciona spritemap.json",         OPEN_FILE, "json", "Selecciona spritemap.json");
+        atlasPngInput      = new UiInput("spritemap.png",        "Se resuelve automáticamente.",      OPEN_FILE, "png",  "Selecciona spritemap.png");
+        animsXmlInput      = new UiInput("anims.xml (opcional)", "Lista estilo Codename.",            OPEN_FILE, "xml",  "Selecciona anims.xml");
+        animsJsonInput     = new UiInput("anims.json (opcional)","Lista estilo Psych/FNF.",           OPEN_FILE, "json", "Selecciona anims.json");
+        filterInput        = new UiInput("Filtro", "Filtra por nombre o símbolo.", NONE);
 
         exportFramesToggle = new UiToggle("Exportar frames PNG", true);
 
-        refreshButton = new UiButton("Refrescar anims", 0x2563EB);
-        exportButton = new UiButton("Guardar ZIP", 0xEA580C);
-        allButton = new UiButton("Todo", 0x1D4ED8);
-        noneButton = new UiButton("Nada", 0x334155);
+        mediaImportButton  = new UiButton("Cargar media",   0x0F766E);
+        refreshButton      = new UiButton("Refrescar anims",0x2563EB);
+        mediaExportButton  = new UiButton("Exportar media", 0x7C3AED);
+        exportButton       = new UiButton("Guardar ZIP",    0xEA580C);
+        allButton          = new UiButton("Todo",           0x1D4ED8);
+        noneButton         = new UiButton("Nada",           0x334155);
 
         inputsCard.content.addChild(animationJsonInput);
         inputsCard.content.addChild(atlasJsonInput);
@@ -176,16 +218,15 @@ class MainView extends Sprite {
         inputsCard.content.addChild(animsXmlInput);
         inputsCard.content.addChild(animsJsonInput);
         inputsCard.content.addChild(exportFramesToggle);
+        inputsCard.content.addChild(mediaImportButton);
         inputsCard.content.addChild(refreshButton);
+        inputsCard.content.addChild(mediaExportButton);
         inputsCard.content.addChild(exportButton);
 
-        refreshButton.addEventListener(MouseEvent.CLICK, function(_) {
-            refreshProject();
-        });
-
-        exportButton.addEventListener(MouseEvent.CLICK, function(_) {
-            runExport();
-        });
+        mediaImportButton.addEventListener(MouseEvent.CLICK, function(_) { loadProjectFromMedia(); });
+        refreshButton.addEventListener(MouseEvent.CLICK,     function(_) { refreshProject(); });
+        mediaExportButton.addEventListener(MouseEvent.CLICK, function(_) { runExportToMedia(); });
+        exportButton.addEventListener(MouseEvent.CLICK,      function(_) { runExport(); });
 
         filterInput.field.addEventListener(Event.CHANGE, function(_) {
             animationsView.setFilter(filterInput.text);
@@ -195,53 +236,41 @@ class MainView extends Sprite {
 
     function buildAnimations():Void {
         selectionField = new TextField();
-        selectionField.defaultTextFormat = new TextFormat("_sans", 13, 0x93C5FD, true);
-        selectionField.selectable = false;
+        AppFonts.applyUi(selectionField, 13, 0x93C5FD, true);
+        selectionField.selectable   = false;
         selectionField.mouseEnabled = false;
         selectionField.text = "0 seleccionadas";
         animationsCard.content.addChild(selectionField);
 
         helperField = new TextField();
-        helperField.defaultTextFormat = new TextFormat("_sans", 12, 0x64748B);
-        helperField.selectable = false;
+        AppFonts.applyUi(helperField, 12, 0x64748B);
+        helperField.selectable   = false;
         helperField.mouseEnabled = false;
-        helperField.multiline = true;
-        helperField.wordWrap = true;
-        helperField.text = "Toca una fila para activarla o desactivarla. Desliza verticalmente para hacer scroll y exportar solo lo que te interesa.";
+        helperField.multiline    = true;
+        helperField.wordWrap     = true;
+        helperField.text = "Toca una fila para activarla/desactivarla. Desliza para hacer scroll.";
         animationsCard.content.addChild(helperField);
 
         animationsView = new AnimationListView();
-        animationsView.onSelectionChanged = function() {
-            updateSelectionSummary();
-        };
+        animationsView.onSelectionChanged = function() { updateSelectionSummary(); };
         animationsCard.content.addChild(animationsView);
 
         animationsCard.content.addChild(filterInput);
         animationsCard.content.addChild(allButton);
         animationsCard.content.addChild(noneButton);
 
-        allButton.addEventListener(MouseEvent.CLICK, function(_) {
-            animationsView.setAllSelected(true);
-        });
-
-        noneButton.addEventListener(MouseEvent.CLICK, function(_) {
-            animationsView.setAllSelected(false);
-        });
+        allButton.addEventListener(MouseEvent.CLICK,  function(_) { animationsView.setAllSelected(true); });
+        noneButton.addEventListener(MouseEvent.CLICK, function(_) { animationsView.setAllSelected(false); });
     }
 
     function buildLog():Void {
-        logField = new TextField();
-        logField.defaultTextFormat = new TextFormat("_typewriter", 13, 0xE2E8F0);
-        logField.selectable = true;
-        logField.multiline = true;
-        logField.wordWrap = true;
-        logField.mouseWheelEnabled = true;
-        logCard.content.addChild(logField);
+        consoleView = new ConsoleView();
+        logCard.content.addChild(consoleView);
     }
 
     function buildInfoButton():Void {
         infoButton = new Sprite();
-        infoButton.buttonMode = true;
+        infoButton.buttonMode    = true;
         infoButton.useHandCursor = true;
         infoButton.mouseChildren = false;
 
@@ -252,10 +281,7 @@ class MainView extends Sprite {
         infoButtonIcon.smoothing = true;
         infoButton.addChild(infoButtonIcon);
 
-        infoButton.addEventListener(MouseEvent.CLICK, function(_) {
-            toggleAbout();
-        });
-
+        infoButton.addEventListener(MouseEvent.CLICK, function(_) { toggleAbout(); });
         addChild(infoButton);
     }
 
@@ -266,21 +292,19 @@ class MainView extends Sprite {
 
         aboutScrim = new Shape();
         aboutOverlay.addChild(aboutScrim);
-        aboutScrim.addEventListener(MouseEvent.CLICK, function(_) {
-            toggleAbout(false);
-        });
+        aboutScrim.addEventListener(MouseEvent.CLICK, function(_) { toggleAbout(false); });
 
         aboutCard = new CardSection(projectInfo.panelTitle);
         aboutOverlay.addChild(aboutCard);
 
-        aboutIntroField = createAboutField(16, 0xE2E8F0, false);
+        aboutIntroField   = createAboutField(16, 0xE2E8F0, false);
         aboutProjectField = createAboutField(13, 0x93C5FD, false);
         aboutProjectField.selectable = true;
         aboutProjectField.mouseEnabled = true;
-        aboutTeamList = new Sprite();
+        aboutTeamList   = new Sprite();
         aboutExtraField = createAboutField(12, 0x94A3B8, false);
 
-        aboutLinkButton = new UiButton(projectInfo.linkLabel, 0x0EA5E9);
+        aboutLinkButton  = new UiButton(projectInfo.linkLabel, 0x0EA5E9);
         aboutCloseButton = new UiButton("Cerrar", 0x334155);
 
         aboutCard.content.addChild(aboutIntroField);
@@ -290,56 +314,54 @@ class MainView extends Sprite {
         aboutCard.content.addChild(aboutLinkButton);
         aboutCard.content.addChild(aboutCloseButton);
 
-        aboutLinkButton.addEventListener(MouseEvent.CLICK, function(_) {
-            openProjectLink();
-        });
-
-        aboutCloseButton.addEventListener(MouseEvent.CLICK, function(_) {
-            toggleAbout(false);
-        });
+        aboutLinkButton.addEventListener(MouseEvent.CLICK,  function(_) { openProjectLink(); });
+        aboutCloseButton.addEventListener(MouseEvent.CLICK, function(_) { toggleAbout(false); });
 
         refreshAboutText();
     }
 
-    function createAboutField(size:Int, color:Int, bold:Bool):TextField {
-        var field = new TextField();
-        field.defaultTextFormat = new TextFormat("_sans", size, color, bold);
-        field.textColor = color;
-        field.selectable = false;
-        field.mouseEnabled = false;
-        field.multiline = true;
-        field.wordWrap = true;
-        return field;
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Lógica de negocio
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Cargar proyecto seleccionado desde el navbar. */
+    function loadProjectFromNavbar(index:Int, folderPath:String):Void {
+        setStatus("Cargando proyecto #" + (index + 1) + "…", 0x0F766E);
+        try {
+            var newPaths = ImportadorMediaBackend.loadProjectAt(index);
+            populateInputsFromPaths(newPaths);
+            refreshProject();
+        } catch (error:Dynamic) {
+            AppLogger.err("Error cargando proyecto: " + Std.string(error));
+            setStatus("No pude cargar el proyecto", 0x7C2D12);
+        }
     }
 
-    function refreshAboutText():Void {
-        aboutIntroField.text = projectInfo.projectName + "\n" + projectInfo.overviewLines.join("\n");
-        aboutProjectField.text = "Descarga del proyecto\n" + projectInfo.projectUrl;
-        aboutExtraField.text = projectInfo.extraLines.join("\n");
-    }
-
-    function syncPathsFromInputs():Void {
-        paths.animationJson = animationJsonInput.text;
-        paths.atlasJson = atlasJsonInput.text;
-        paths.atlasPng = atlasPngInput.text;
-        paths.animsXml = animsXmlInput.text;
-        paths.animsJson = animsJsonInput.text;
-        paths.outputDir = Backend.getProcessingOutputDir();
+    function loadProjectFromMedia():Void {
+        setStatus("Buscando en media/spritemaps...", 0x0F766E);
+        try {
+            var mediaPaths = ImportadorMediaBackend.loadProject();
+            populateInputsFromPaths(mediaPaths);
+            AppLogger.log(ImportadorMediaBackend.describeImport());
+            refreshProject();
+        } catch (error:Dynamic) {
+            AppLogger.err("Carga desde media falló: " + Std.string(error));
+            setStatus("No encontré proyecto en media", 0x7C2D12);
+        }
     }
 
     function refreshProject():Void {
         syncPathsFromInputs();
         setStatus("Leyendo proyecto...", 0x1D4ED8);
-
         try {
             var result:LoadResult = Backend.loadProject(paths);
             animationsView.setItems(result.animations);
             animationsView.setFilter(filterInput.text);
             updateSelectionSummary();
-            appendLog(result.log);
+            AppLogger.log(result.log);
             setStatus("Animaciones listas", result.animations.length > 0 ? 0x0F766E : 0x475569);
         } catch (error:Dynamic) {
-            appendLog("Refresh falló: " + Std.string(error));
+            AppLogger.err("Refresh falló: " + Std.string(error));
             setStatus("Error leyendo rutas", 0x7C2D12);
         }
     }
@@ -347,46 +369,73 @@ class MainView extends Sprite {
     function runExport():Void {
         syncPathsFromInputs();
         setStatus("Procesando export...", 0xC2410C);
-        exportButton.enabled = false;
+        exportButton.enabled      = false;
+        mediaExportButton.enabled = false;
 
         try {
             var result = Backend.exportProject(paths, animationsView.getSelectedItems(), exportFramesToggle.checked);
-            if (result.log != "") appendLog(result.log);
+            if (result.log != "") AppLogger.log(result.log);
 
             if (result.filesWritten <= 0 || result.archivePath == "") {
                 setStatus("Nada exportado", 0x7C2D12);
-                exportButton.enabled = true;
+                exportButton.enabled = mediaExportButton.enabled = true;
                 return;
             }
 
             setStatus("Elige dónde guardar el ZIP", 0x2563EB);
-            var opened = AndroidFilePicker.saveFile(
+            var opened = GestorArchivosBackend.saveFileToUser(
                 AppConfig.SAVE_DIALOG_TITLE,
                 result.archiveName,
                 result.archivePath,
-                function(savedPath:String) {
-                    appendLog("ZIP guardado: " + savedPath);
+                function(savedFile) {
+                    AppLogger.log("ZIP guardado: " + savedFile.targetPath);
                     Backend.cleanupAfterSave();
                     resetAfterSuccessfulSave();
                     setStatus("ZIP guardado", 0x15803D);
-                    exportButton.enabled = true;
+                    exportButton.enabled = mediaExportButton.enabled = true;
                 },
                 function(message:String) {
-                    appendLog("No pude guardar el ZIP: " + message);
+                    AppLogger.err("No pude guardar el ZIP: " + message);
                     setStatus("ZIP listo para reintentar", 0x7C2D12);
-                    exportButton.enabled = true;
+                    exportButton.enabled = mediaExportButton.enabled = true;
                 }
             );
 
             if (!opened) {
-                appendLog("No pude abrir el selector para guardar.");
+                AppLogger.err("No pude abrir el selector para guardar.");
                 setStatus("Error al guardar", 0x7C2D12);
-                exportButton.enabled = true;
+                exportButton.enabled = mediaExportButton.enabled = true;
             }
         } catch (error:Dynamic) {
-            appendLog("Export falló: " + Std.string(error));
+            AppLogger.err("Export falló: " + Std.string(error));
             setStatus("Export falló", 0x7C2D12);
-            exportButton.enabled = true;
+            exportButton.enabled = mediaExportButton.enabled = true;
+        }
+    }
+
+    function runExportToMedia():Void {
+        syncPathsFromInputs();
+        setStatus("Exportando a media/processed...", 0x7C3AED);
+        exportButton.enabled = mediaExportButton.enabled = false;
+
+        try {
+            var result = Backend.exportProjectToMedia(paths, animationsView.getSelectedItems(), exportFramesToggle.checked);
+            if (result.log != "") AppLogger.log(result.log);
+
+            if (result.filesWritten <= 0 || result.archivePath == "") {
+                setStatus("Nada exportado", 0x7C2D12);
+                exportButton.enabled = mediaExportButton.enabled = true;
+                return;
+            }
+
+            AppLogger.log("Salida procesada: " + result.outputDir);
+            AppLogger.log("ZIP en media: "      + result.archivePath);
+            setStatus("Listo en media/processed", 0x15803D);
+            exportButton.enabled = mediaExportButton.enabled = true;
+        } catch (error:Dynamic) {
+            AppLogger.err("Export a media falló: " + Std.string(error));
+            setStatus("Falló export a media", 0x7C2D12);
+            exportButton.enabled = mediaExportButton.enabled = true;
         }
     }
 
@@ -394,25 +443,35 @@ class MainView extends Sprite {
         paths = Backend.createDefaultPaths();
         animationJsonInput.text = "";
         atlasJsonInput.text = "";
-        atlasPngInput.text = "";
-        animsXmlInput.text = "";
+        atlasPngInput.text  = "";
+        animsXmlInput.text  = "";
         animsJsonInput.text = "";
-        filterInput.text = "";
+        filterInput.text    = "";
         animationsView.setItems([]);
         updateSelectionSummary();
-        appendLog("Workspace temporal limpiado.");
+        AppLogger.log("Workspace temporal limpiado.");
     }
 
-    function appendLog(line:String):Void {
-        if (line == null || StringTools.trim(line) == "") return;
-        for (piece in line.split("\n")) {
-            var clean = StringTools.trim(piece);
-            if (clean == "") continue;
-            logLines.push(clean);
-        }
-        while (logLines.length > 220) logLines.shift();
-        logField.text = logLines.join("\n");
-        logField.scrollV = logField.maxScrollV;
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function syncPathsFromInputs():Void {
+        paths.animationJson = animationJsonInput.text;
+        paths.atlasJson     = atlasJsonInput.text;
+        paths.atlasPng      = atlasPngInput.text;
+        paths.animsXml      = animsXmlInput.text;
+        paths.animsJson     = animsJsonInput.text;
+        paths.outputDir     = Backend.getProcessingOutputDir();
+    }
+
+    function populateInputsFromPaths(newPaths:ProjectPaths):Void {
+        if (newPaths == null) return;
+        animationJsonInput.text = newPaths.animationJson;
+        atlasJsonInput.text     = newPaths.atlasJson;
+        atlasPngInput.text      = newPaths.atlasPng;
+        animsXmlInput.text      = newPaths.animsXml;
+        animsJsonInput.text     = newPaths.animsJson;
     }
 
     function updateSelectionSummary():Void {
@@ -429,73 +488,85 @@ class MainView extends Sprite {
 
         statusBadge.graphics.clear();
         statusBadge.graphics.beginFill(statusColor, 0.95);
-        statusBadge.graphics.drawRoundRect(rightEdge - statusField.textWidth - 36, 28, statusField.textWidth + 34, 28, 14, 14);
+        statusBadge.graphics.drawRoundRect(rightEdge - statusField.textWidth - 36, 28,
+            statusField.textWidth + 34, 28, 14, 14);
         statusBadge.graphics.endFill();
     }
 
-    function onResize(_:Event):Void {
-        layout();
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Layout
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function onResize(_:Event):Void { layout(); }
 
     function layout():Void {
-        var width = stage.stageWidth;
+        var width  = stage.stageWidth;
         var height = stage.stageHeight;
-        var margin = width < 900 ? 18.0 : 24.0;
-        var headerHeight = 116.0;
+        var margin:Float = 18.0;
 
         drawBackground(width, height);
 
-        layoutInfoButton(width, margin);
+        layoutInfoButton(margin, width);
 
-        var headerRight = infoButton.x - 18;
-        titleField.x = margin;
-        titleField.y = 24;
-        titleField.width = Math.max(180, headerRight - margin);
-        titleField.height = 40;
+        // ── Header ────────────────────────────────────────────────────────────
+        var headerRight = infoButton.x - 14;
 
-        subtitleField.x = margin;
-        subtitleField.y = 70;
-        subtitleField.width = Math.max(180, headerRight - margin);
-        subtitleField.height = 42;
+        titleField.x      = margin;
+        titleField.y      = 24;
+        titleField.width  = Math.max(180, headerRight - margin);
+        titleField.height = 42;
 
-        var contentTop = headerHeight + margin;
-        var gap = 18.0;
+        subtitleField.x      = margin;
+        subtitleField.y      = 70;
+        subtitleField.width  = Math.max(180, headerRight - margin);
+        subtitleField.height = 38;
 
-        if (width >= 980) {
-            var fullWidth = width - margin * 2;
-            var topCardWidth = (fullWidth - gap) * 0.5;
-            var topHeight = Math.max(420.0, Math.min(620.0, height - contentTop - margin - 250));
+        // ── Navbar dropdown — debajo del subtítulo ────────────────────────────
+        navbarY = subtitleField.y + 44;
+        navbar.x = margin;
+        navbar.y = navbarY;
+        navbar.setStageWidth(width);
+        // Asegurar que el navbar siempre quede al tope del display list
+        setChildIndex(navbar, numChildren - 1);
+
+        // ── Cards — empiezan debajo del navbar ────────────────────────────────
+        var contentTop = navbarY + 48;  // botón navbar 38px + gap 10px
+        var gap  = 14.0;
+        var fullW = width - margin * 2;
+
+        if (width >= 960) {
+            var topCardW = (fullW - gap) * 0.5;
+            var topH = Math.max(480.0, Math.min(680.0, height - contentTop - margin - 240));
 
             inputsCard.x = margin;
             inputsCard.y = contentTop;
-            inputsCard.setSize(topCardWidth, topHeight);
+            inputsCard.setSize(topCardW, topH);
 
-            animationsCard.x = margin + topCardWidth + gap;
+            animationsCard.x = margin + topCardW + gap;
             animationsCard.y = contentTop;
-            animationsCard.setSize(topCardWidth, topHeight);
+            animationsCard.setSize(topCardW, topH);
 
             logCard.x = margin;
-            logCard.y = contentTop + topHeight + gap;
-            logCard.setSize(fullWidth, Math.max(220.0, height - logCard.y - margin));
+            logCard.y = contentTop + topH + gap;
+            logCard.setSize(fullW, Math.max(200.0, height - logCard.y - margin));
         } else {
-            var fullWidth = width - margin * 2;
-            var nextY = contentTop;
-            var inputsHeight = 620.0;
-            var animationsHeight = 330.0;
+            var nextY    = contentTop;
+            var inputsH  = 680.0;
+            var animsH   = 320.0;
 
             inputsCard.x = margin;
             inputsCard.y = nextY;
-            inputsCard.setSize(fullWidth, inputsHeight);
-            nextY += inputsHeight + gap;
+            inputsCard.setSize(fullW, inputsH);
+            nextY += inputsH + gap;
 
             animationsCard.x = margin;
             animationsCard.y = nextY;
-            animationsCard.setSize(fullWidth, animationsHeight);
-            nextY += animationsHeight + gap;
+            animationsCard.setSize(fullW, animsH);
+            nextY += animsH + gap;
 
             logCard.x = margin;
             logCard.y = nextY;
-            logCard.setSize(fullWidth, Math.max(220.0, height - nextY - margin));
+            logCard.setSize(fullW, Math.max(200.0, height - nextY - margin));
         }
 
         layoutInputsCard();
@@ -505,35 +576,35 @@ class MainView extends Sprite {
         setStatus(statusField.text == null || statusField.text == "" ? "Listo" : statusField.text, statusColor);
     }
 
+    function layoutInfoButton(margin:Float, width:Float):Void {
+        var size = 46.0;
+
+        infoButtonBg.graphics.clear();
+        infoButtonBg.graphics.beginFill(0x0F172A, 0.98);
+        infoButtonBg.graphics.lineStyle(2, 0x38BDF8, 0.45);
+        infoButtonBg.graphics.drawRoundRect(0, 0, size, size, 18, 18);
+        infoButtonBg.graphics.endFill();
+
+        infoButtonIcon.width  = size - 18;
+        infoButtonIcon.height = size - 18;
+        infoButtonIcon.x = (size - infoButtonIcon.width)  * 0.5;
+        infoButtonIcon.y = (size - infoButtonIcon.height) * 0.5;
+
+        infoButton.x = width - margin - size;
+        infoButton.y = 24;
+    }
+
     function layoutInputsCard():Void {
         var cardWidth = inputsCard.innerWidth;
         var y = 0.0;
         var rowGap = 88.0;
 
-        animationJsonInput.x = 0;
-        animationJsonInput.y = y;
-        animationJsonInput.setWidth(cardWidth);
-        y += rowGap;
-
-        atlasJsonInput.x = 0;
-        atlasJsonInput.y = y;
-        atlasJsonInput.setWidth(cardWidth);
-        y += rowGap;
-
-        atlasPngInput.x = 0;
-        atlasPngInput.y = y;
-        atlasPngInput.setWidth(cardWidth);
-        y += rowGap;
-
-        animsXmlInput.x = 0;
-        animsXmlInput.y = y;
-        animsXmlInput.setWidth(cardWidth);
-        y += rowGap;
-
-        animsJsonInput.x = 0;
-        animsJsonInput.y = y;
-        animsJsonInput.setWidth(cardWidth);
-        y += rowGap + 2;
+        for (input in [animationJsonInput, atlasJsonInput, atlasPngInput, animsXmlInput, animsJsonInput]) {
+            input.x = 0;
+            input.y = y;
+            input.setWidth(cardWidth);
+            y += rowGap;
+        }
 
         exportFramesToggle.x = 0;
         exportFramesToggle.y = y;
@@ -541,40 +612,50 @@ class MainView extends Sprite {
         y += 44;
 
         var buttonGap = 12.0;
-        var refreshWidth = Math.max(154.0, (cardWidth - buttonGap) * 0.34);
-        var exportWidth = Math.max(190.0, cardWidth - refreshWidth - buttonGap);
-        refreshButton.x = 0;
-        refreshButton.y = y;
-        refreshButton.setSize(refreshWidth, 52);
+        var buttonW   = (cardWidth - buttonGap) * 0.5;
 
-        exportButton.x = refreshWidth + buttonGap;
+        mediaImportButton.x = 0;
+        mediaImportButton.y = y;
+        mediaImportButton.setSize(buttonW, 52);
+
+        refreshButton.x = buttonW + buttonGap;
+        refreshButton.y = y;
+        refreshButton.setSize(buttonW, 52);
+        y += 64;
+
+        mediaExportButton.x = 0;
+        mediaExportButton.y = y;
+        mediaExportButton.setSize(buttonW, 52);
+
+        exportButton.x = buttonW + buttonGap;
         exportButton.y = y;
-        exportButton.setSize(exportWidth, 52);
+        exportButton.setSize(buttonW, 52);
     }
 
     function layoutAnimationsCard():Void {
         selectionField.x = 0;
         selectionField.y = 0;
-        selectionField.width = animationsCard.innerWidth;
+        selectionField.width  = animationsCard.innerWidth;
         selectionField.height = 20;
 
         filterInput.x = 0;
         filterInput.y = 26;
         filterInput.setWidth(animationsCard.innerWidth);
 
-        var actionsY = 116.0;
-        var buttonWidth = (animationsCard.innerWidth - 10) * 0.5;
-        allButton.x = 0;
-        allButton.y = actionsY;
-        allButton.setSize(buttonWidth, 46);
+        var actionsY  = 116.0;
+        var buttonW   = (animationsCard.innerWidth - 10) * 0.5;
 
-        noneButton.x = buttonWidth + 10;
+        allButton.x  = 0;
+        allButton.y  = actionsY;
+        allButton.setSize(buttonW, 46);
+
+        noneButton.x = buttonW + 10;
         noneButton.y = actionsY;
-        noneButton.setSize(buttonWidth, 46);
+        noneButton.setSize(buttonW, 46);
 
         helperField.x = 0;
         helperField.y = 170;
-        helperField.width = animationsCard.innerWidth;
+        helperField.width  = animationsCard.innerWidth;
         helperField.height = 36;
 
         animationsView.x = 0;
@@ -583,28 +664,7 @@ class MainView extends Sprite {
     }
 
     function layoutLogCard():Void {
-        logField.x = 0;
-        logField.y = 0;
-        logField.width = logCard.innerWidth;
-        logField.height = logCard.innerHeight;
-    }
-
-    function layoutInfoButton(width:Float, margin:Float):Void {
-        var size = width < 900 ? 46.0 : 50.0;
-
-        infoButtonBg.graphics.clear();
-        infoButtonBg.graphics.beginFill(0x0F172A, 0.98);
-        infoButtonBg.graphics.lineStyle(2, 0x38BDF8, 0.45);
-        infoButtonBg.graphics.drawRoundRect(0, 0, size, size, 18, 18);
-        infoButtonBg.graphics.endFill();
-
-        infoButtonIcon.width = size - 18;
-        infoButtonIcon.height = size - 18;
-        infoButtonIcon.x = (size - infoButtonIcon.width) * 0.5;
-        infoButtonIcon.y = (size - infoButtonIcon.height) * 0.5;
-
-        infoButton.x = width - margin - size;
-        infoButton.y = 24;
+        consoleView.setSize(logCard.innerWidth, logCard.innerHeight);
     }
 
     function layoutAboutOverlay(width:Float, height:Float, margin:Float):Void {
@@ -615,99 +675,200 @@ class MainView extends Sprite {
         aboutScrim.graphics.drawRect(0, 0, width, height);
         aboutScrim.graphics.endFill();
 
-        var panelWidth = Math.min(620.0, width - margin * 2);
-        var panelHeight = Math.min(540.0, height - margin * 2);
-        if (panelHeight < 420) panelHeight = height - margin * 2;
+        var panelW = Math.min(580.0, width - margin * 2);
+        var panelH = Math.min(height - margin * 2, height - margin * 2);
 
-        aboutCard.setSize(panelWidth, panelHeight);
-        aboutCard.x = (width - panelWidth) * 0.5;
-        aboutCard.y = (height - panelHeight) * 0.5;
+        aboutCard.setSize(panelW, panelH);
+        aboutCard.x = (width - panelW) * 0.5;
+        aboutCard.y = margin;
 
-        var contentWidth = aboutCard.innerWidth;
-        var y = 0.0;
+        var cw = aboutCard.innerWidth;
+        var y  = 0.0;
 
-        aboutIntroField.x = 0;
-        aboutIntroField.y = y;
-        aboutIntroField.width = contentWidth;
+        aboutIntroField.x = 0; aboutIntroField.y = y;
+        aboutIntroField.width  = cw;
         aboutIntroField.height = measuredTextHeight(aboutIntroField, 52);
         y += aboutIntroField.height + 10;
 
-        aboutProjectField.x = 0;
-        aboutProjectField.y = y;
-        aboutProjectField.width = contentWidth;
-        aboutProjectField.height = measuredTextHeight(aboutProjectField, 38);
-        y += aboutProjectField.height + 14;
+        aboutProjectField.x = 0; aboutProjectField.y = y;
+        aboutProjectField.width  = cw;
+        aboutProjectField.height = measuredTextHeight(aboutProjectField, 32);
+        y += aboutProjectField.height + 12;
 
-        aboutTeamList.x = 0;
-        aboutTeamList.y = y;
-        y += rebuildAboutTeamList(contentWidth) + 14;
+        aboutTeamList.x = 0; aboutTeamList.y = y;
+        y += rebuildAboutTeamList(cw) + 12;
 
-        var buttonsY = aboutCard.innerHeight - 52;
-        aboutExtraField.x = 0;
-        aboutExtraField.y = y;
-        aboutExtraField.width = contentWidth;
-        aboutExtraField.height = Math.max(36, buttonsY - y - 12);
+        aboutExtraField.x = 0; aboutExtraField.y = y;
+        aboutExtraField.width  = cw;
+        aboutExtraField.height = measuredTextHeight(aboutExtraField, 36);
+        y += aboutExtraField.height + 12;
 
         var buttonGap = 12.0;
-        var buttonWidth = (contentWidth - buttonGap) * 0.5;
-        aboutLinkButton.x = 0;
-        aboutLinkButton.y = buttonsY;
-        aboutLinkButton.setSize(buttonWidth, 48);
+        var buttonW   = (cw - buttonGap) * 0.5;
 
-        aboutCloseButton.x = buttonWidth + buttonGap;
-        aboutCloseButton.y = buttonsY;
-        aboutCloseButton.setSize(buttonWidth, 48);
+        aboutLinkButton.x  = 0;  aboutLinkButton.y  = y;
+        aboutLinkButton.setSize(buttonW, 46);
+
+        aboutCloseButton.x = buttonW + buttonGap; aboutCloseButton.y = y;
+        aboutCloseButton.setSize(buttonW, 46);
     }
+
+    // ─── Imagen random por colaborador ────────────────────────────────────────
+    //  Se elige al abrir el About y se mantiene hasta que se cierra.
+    //  Formato de fila:  [imagen 300x300 máx]  [nombre\nrol]
+    // ─────────────────────────────────────────────────────────────────────────
+
+    static inline var COLLAB_IMG_MAX:Float = 300;
+    static inline var COLLAB_IMG_SIZE:Float = 80;  // tamaño fijo del cuadro de imagen
+    static inline var COLLAB_ROW_H:Float   = 90;   // altura fija de cada fila
 
     function rebuildAboutTeamList(width:Float):Float {
-        while (aboutTeamList.numChildren > 0) {
-            aboutTeamList.removeChildAt(0);
-        }
-
-        if (projectInfo == null || projectInfo.teamEntries == null || projectInfo.teamEntries.length == 0) {
-            return 0;
-        }
+        while (aboutTeamList.numChildren > 0) aboutTeamList.removeChildAt(0);
+        if (projectInfo == null || projectInfo.teamEntries == null || projectInfo.teamEntries.length == 0) return 0;
 
         var y = 0.0;
+        var gap = 10.0;
         for (entry in projectInfo.teamEntries) {
-            var row = createAboutTeamRow(entry, width);
+            var row = _makeCollabRow(entry, width);
             row.y = y;
             aboutTeamList.addChild(row);
-            y += row.height + 10;
+            y += COLLAB_ROW_H + gap;
         }
-
-        return y > 0 ? y - 10 : 0;
+        return y > 0 ? y - gap : 0;
     }
 
-    function createAboutTeamRow(entry:ProjectInfoEntryData, width:Float):Sprite {
+    function _makeCollabRow(entry:ProjectInfoEntryData, width:Float):Sprite {
         var row = new Sprite();
-        var iconSize = 20.0;
-        var textX = 0.0;
+        if (entry == null) return row;
 
-        if (entry != null && entry.icon != null && StringTools.trim(entry.icon) != "") {
-            var assetPath = AppConfig.resolveAssetPath(entry.icon);
-            try {
-                if (openfl.Assets.exists(assetPath)) {
-                    var icon = new Bitmap(openfl.Assets.getBitmapData(assetPath));
-                    icon.smoothing = true;
-                    icon.width = iconSize;
-                    icon.height = iconSize;
-                    icon.y = 1;
-                    row.addChild(icon);
-                    textX = iconSize + 10;
-                }
-            } catch (_:Dynamic) {}
+        // Fondo de fila sutil
+        var bg = new Shape();
+        bg.graphics.beginFill(0x111827, 0.7);
+        bg.graphics.drawRoundRect(0, 0, width, COLLAB_ROW_H, 12, 12);
+        bg.graphics.endFill();
+        row.addChild(bg);
+
+        // ── Imagen random de la carpeta ───────────────────────────────────────
+        var iconPath = entry.icon != null ? StringTools.trim(entry.icon) : "";
+        var imgX = 10.0;
+        var imgLoaded = false;
+
+        if (iconPath != "") {
+            var chosen = _pickRandomImage(iconPath);
+            if (chosen != null) {
+                try {
+                    var bmd = openfl.Assets.getBitmapData(chosen);
+                    if (bmd != null) {
+                        var scale = Math.min(
+                            COLLAB_IMG_MAX / bmd.width,
+                            COLLAB_IMG_MAX / bmd.height
+                        );
+                        // Limitar también al cuadro de la fila
+                        scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.width);
+                        scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.height);
+                        scale = Math.min(scale, 1.0);
+
+                        var bm = new Bitmap(bmd);
+                        bm.smoothing = true;
+                        bm.scaleX = scale;
+                        bm.scaleY = scale;
+                        // Centrar verticalmente en la fila
+                        bm.x = imgX + (COLLAB_IMG_SIZE - bm.width)  * 0.5;
+                        bm.y = (COLLAB_ROW_H - bm.height) * 0.5;
+                        row.addChild(bm);
+                        imgLoaded = true;
+                    }
+                } catch (_:Dynamic) {}
+            }
         }
 
-        var field = createAboutField(14, 0xF8FAFC, false);
-        field.text = entry != null ? entry.text : "";
-        field.x = textX;
-        field.y = 0;
-        field.width = Math.max(40, width - textX);
-        field.height = measuredTextHeight(field, 20);
-        row.addChild(field);
+        // Placeholder si no cargó imagen
+        if (!imgLoaded) {
+            var ph = new Shape();
+            ph.graphics.beginFill(0x1E293B);
+            ph.graphics.drawRoundRect(imgX, (COLLAB_ROW_H - COLLAB_IMG_SIZE) * 0.5,
+                COLLAB_IMG_SIZE, COLLAB_IMG_SIZE, 8, 8);
+            ph.graphics.endFill();
+            row.addChild(ph);
+        }
+
+        // ── Texto: nombre y rol ───────────────────────────────────────────────
+        var textX = imgX + COLLAB_IMG_SIZE + 14;
+        var textW = width - textX - 10;
+
+        // Separar "nombre — rol" si viene con " — "
+        var parts = entry.text.split(" — ");
+        var nombre = StringTools.trim(parts[0]);
+        var rol    = parts.length > 1 ? StringTools.trim(parts[1]) : "";
+
+        var nameField = new TextField();
+        AppFonts.applyUi(nameField, 16, 0xF8FAFC, true);
+        nameField.selectable   = false;
+        nameField.mouseEnabled = false;
+        nameField.text   = nombre;
+        nameField.x      = textX;
+        nameField.y      = rol != "" ? (COLLAB_ROW_H * 0.5 - 22) : (COLLAB_ROW_H - 22) * 0.5;
+        nameField.width  = textW;
+        nameField.height = 22;
+        row.addChild(nameField);
+
+        if (rol != "") {
+            var rolField = new TextField();
+            AppFonts.applyUi(rolField, 13, 0x94A3B8);
+            rolField.selectable   = false;
+            rolField.mouseEnabled = false;
+            rolField.text   = rol;
+            rolField.x      = textX;
+            rolField.y      = nameField.y + 24;
+            rolField.width  = textW;
+            rolField.height = 18;
+            row.addChild(rolField);
+        }
 
         return row;
+    }
+
+    /**
+     * Devuelve un asset path elegido al azar de los PNG/JPG/GIF
+     * que haya en la carpeta dada. Devuelve null si no hay ninguno.
+     */
+    function _pickRandomImage(folderPath:String):String {
+        var exts   = ["png", "jpg", "jpeg", "gif"];
+        var prefix = StringTools.startsWith(folderPath, "assets/")
+            ? folderPath.substr("assets/".length)
+            : folderPath;
+        if (!StringTools.endsWith(prefix, "/")) prefix += "/";
+
+        var results:Array<String> = [];
+        try {
+            for (assetPath in lime.utils.Assets.list()) {
+                if (!StringTools.startsWith(assetPath, prefix)) continue;
+                var ext = haxe.io.Path.extension(assetPath).toLowerCase();
+                if (exts.indexOf(ext) >= 0) results.push(assetPath);
+            }
+        } catch (_:Dynamic) {}
+
+        if (results.length == 0) return null;
+
+        // Random simple con Std.random
+        return results[Std.random(results.length)];
+    }
+
+    function createAboutField(size:Int, color:Int, bold:Bool):TextField {
+        var field = new TextField();
+        AppFonts.applyUi(field, size, color, bold);
+        field.textColor  = color;
+        field.selectable = false;
+        field.mouseEnabled = false;
+        field.multiline  = true;
+        field.wordWrap   = true;
+        return field;
+    }
+
+    function refreshAboutText():Void {
+        aboutIntroField.text   = projectInfo.projectName + "\n" + projectInfo.overviewLines.join("\n");
+        aboutProjectField.text = "Descarga del proyecto\n" + projectInfo.projectUrl;
+        aboutExtraField.text   = projectInfo.extraLines.join("\n");
     }
 
     function measuredTextHeight(field:TextField, minHeight:Float):Float {
@@ -719,22 +880,22 @@ class MainView extends Sprite {
         if (aboutVisible) {
             setChildIndex(aboutOverlay, numChildren - 1);
             refreshAboutText();
+            aboutCard.content.y = 0; // reset scroll al abrir
         }
         layout();
     }
 
     function openProjectLink():Void {
         if (projectInfo == null || StringTools.trim(projectInfo.projectUrl) == "") {
-            appendLog("No hay link configurado para el proyecto.");
+            AppLogger.warn("No hay link configurado para el proyecto.");
             setStatus("Sin link configurado", 0x7C2D12);
             return;
         }
-
         try {
             Lib.getURL(new URLRequest(projectInfo.projectUrl), "_blank");
-            appendLog("Abriendo proyecto: " + projectInfo.projectUrl);
+            AppLogger.log("Abriendo proyecto: " + projectInfo.projectUrl);
         } catch (error:Dynamic) {
-            appendLog("No pude abrir el link del proyecto: " + Std.string(error));
+            AppLogger.err("No pude abrir el link: " + Std.string(error));
             setStatus("No pude abrir el link", 0x7C2D12);
         }
     }

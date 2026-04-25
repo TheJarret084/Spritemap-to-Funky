@@ -9,6 +9,7 @@ Makefile
 *.ninja_deps
 *.ninja_log
 /builds/
+*.codex
 
 # Binaries
 *.exe
@@ -60,3 +61,9 @@ out*/
 # scripts drive, esto sera para test rapido
 /Android/androidBuild/scripts/
 /Android/androidBuild/scripts/*
+
+# Android signing
+*.keystore
+*.jks
+/Android/androidBuild/signing.properties
+/Android/androidBuild/app/signing.properties

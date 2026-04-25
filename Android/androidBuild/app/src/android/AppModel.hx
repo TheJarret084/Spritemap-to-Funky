@@ -58,6 +58,7 @@ class ExportResult {
     public var log:String;
     public var outputDir:String;
     public var filesWritten:Int;
+    public var zipPath:String;
     public var archivePath:String;
     public var archiveName:String;
 
@@ -65,12 +66,14 @@ class ExportResult {
         log:String = "",
         outputDir:String = "",
         filesWritten:Int = 0,
+        zipPath:String = "",
         archivePath:String = "",
         archiveName:String = ""
     ) {
         this.log = log;
         this.outputDir = outputDir;
         this.filesWritten = filesWritten;
+        this.zipPath = zipPath;
         this.archivePath = archivePath;
         this.archiveName = archiveName;
     }

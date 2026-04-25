@@ -7,7 +7,7 @@
          company="JarretLabs"
          main="Main" />
 
-    <define name="caros" if="debug && android" />
+    <!-- <define name="caros" if="debug && android" /> -->
 
     <if target="android">
         <android extension="org.haxe.extension.AndroidFilePicker" />
@@ -21,8 +21,8 @@
                 orientation="portrait"
                 fullscreen="false" />
 
-        <icon path="iconAndroid.png" unless="caros" />
-        <icon path="assets/icons/icon.png" if="caros" />
+        <icon path="iconAndroid.png" />
+        
 
         <permission name="android.permission.READ_EXTERNAL_STORAGE" />
     </if>
