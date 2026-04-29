@@ -46,6 +46,9 @@ java -version || { echo "❌ Java no funciona"; exit 1; }
 SDK_DIR="$HOME/Android/Sdk"
 TOOLS_DIR="$SDK_DIR/cmdline-tools"
 ZIP_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+NDK_VERSION="25.2.9519653"
+PLATFORM_VERSION="android-35"
+BUILD_TOOLS_VERSION="36.1.0"
 
 echo "📥 Preparando SDK..."
 mkdir -p "$TOOLS_DIR"
@@ -75,7 +78,7 @@ export ANDROID_HOME=\$HOME/Android/Sdk
 export ANDROID_SDK_ROOT=\$ANDROID_HOME
 export PATH=\$PATH:\$ANDROID_HOME/cmdline-tools/latest/bin
 export PATH=\$PATH:\$ANDROID_HOME/platform-tools
-export ANDROID_NDK_ROOT=\$ANDROID_HOME/ndk/25.2.9519653
+export ANDROID_NDK_ROOT=\$ANDROID_HOME/ndk/$NDK_VERSION
 
 # JAVA (auto detectado)
 export JAVA_HOME=$JAVA_HOME
@@ -100,7 +103,7 @@ export ANDROID_HOME=$HOME/Android/Sdk
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
 export PATH=$PATH:$ANDROID_HOME/platform-tools
-export ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/25.2.9519653
+export ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION
 
 # =========================
 # INSTALAR SDK
@@ -110,10 +113,11 @@ echo "📲 Instalando SDK..."
 yes | sdkmanager --licenses
 
 sdkmanager \
+"cmdline-tools;latest" \
 "platform-tools" \
-"platforms;android-33" \
-"build-tools;33.0.2" \
-"ndk;25.2.9519653"
+"platforms;$PLATFORM_VERSION" \
+"build-tools;$BUILD_TOOLS_VERSION" \
+"ndk;$NDK_VERSION"
 
 # =========================
 # VERIFICACIÓN FINAL

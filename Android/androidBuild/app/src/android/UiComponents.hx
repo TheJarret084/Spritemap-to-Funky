@@ -212,11 +212,22 @@ class UiInput extends Sprite {
     }
 
     function makeBrowseButton():openfl.display.SimpleButton {
-        var icon = new openfl.display.Bitmap(openfl.Assets.getBitmapData(AppConfig.resolveAssetPath(AppConfig.BROWSE_ICON_ASSET)));
-        icon.width = 40;
-        icon.height = 28;
         var up = new Sprite();
-        up.addChild(icon);
+        var bitmapData = AppConfig.getBitmapData(AppConfig.BROWSE_ICON_ASSET);
+        if (bitmapData != null) {
+            var icon = new openfl.display.Bitmap(bitmapData);
+            icon.width = 40;
+            icon.height = 28;
+            up.addChild(icon);
+        } else {
+            AppLogger.warn("Icono de explorar no encontrado: " + AppConfig.BROWSE_ICON_ASSET);
+            var fallback = new Shape();
+            fallback.graphics.beginFill(0x38BDF8);
+            fallback.graphics.drawRoundRect(4, 9, 30, 16, 4, 4);
+            fallback.graphics.drawRoundRect(7, 6, 12, 7, 3, 3);
+            fallback.graphics.endFill();
+            up.addChild(fallback);
+        }
         var btn = new openfl.display.SimpleButton(up, up, up, up);
         btn.x = widthValue - 44;
         btn.y = 28;

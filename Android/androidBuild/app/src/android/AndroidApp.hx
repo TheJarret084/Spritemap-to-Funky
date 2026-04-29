@@ -39,7 +39,11 @@ class AndroidApp {
         // ── Crear carpetas de media en el primer inicio ───────────────────────
         //    Silencioso si ya existen; loguea si las crea.
         #if android
-        ImportadorMediaBackend.ensureMediaDirectories();
+        try {
+            ImportadorMediaBackend.ensureMediaDirectories();
+        } catch (error:Dynamic) {
+            AppLogger.err("No pude preparar carpetas media: " + Std.string(error));
+        }
         #end
 
         #if !android
@@ -47,7 +51,11 @@ class AndroidApp {
         return;
         #end
 
-        Backend.resetWorkspace();
+        try {
+            Backend.resetWorkspace();
+        } catch (error:Dynamic) {
+            AppLogger.err("No pude limpiar workspace temporal: " + Std.string(error));
+        }
 
         var splashAsset = AppConfig.resolveAssetPath(AppConfig.SPLASH_ASSET_PATH);
         if (Assets.exists(splashAsset) || LimeAssets.exists(splashAsset)) {

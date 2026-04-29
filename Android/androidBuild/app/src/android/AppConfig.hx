@@ -3,6 +3,7 @@ package android;
 import haxe.Json;
 import lime.utils.Assets as LimeAssets;
 import openfl.Assets;
+import openfl.display.BitmapData;
 
 // ─── Datos del panel About ───────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ class AppConfig {
     // ── Assets ────────────────────────────────────────────────────────────────
     public static inline var SPLASH_ASSET_PATH:String     = "other/banner.png";
     public static inline var BROWSE_ICON_ASSET:String     = "buttons/addFilesExport.png";
-    public static inline var ABOUT_ICON_ASSET:String      = "icons/icon.png";
+    public static inline var ABOUT_ICON_ASSET:String      = "info-icons/icon/icon.png";
     public static inline var PROJECT_INFO_ASSET_PATH:String = "other/project-info.json";
 
     // ── Splash ────────────────────────────────────────────────────────────────
@@ -168,6 +169,21 @@ class AppConfig {
         if (Assets.exists(prefixed)    || LimeAssets.exists(prefixed))     return prefixed;
 
         return normalized;
+    }
+
+    public static function assetExists(path:String):Bool {
+        var assetPath = resolveAssetPath(path);
+        return Assets.exists(assetPath) || LimeAssets.exists(assetPath);
+    }
+
+    public static function getBitmapData(path:String):BitmapData {
+        var assetPath = resolveAssetPath(path);
+        try {
+            if (Assets.exists(assetPath) || LimeAssets.exists(assetPath)) {
+                return Assets.getBitmapData(assetPath);
+            }
+        } catch (_:Dynamic) {}
+        return null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -72,6 +72,7 @@ class MainView extends Sprite {
     var infoButton:Sprite;
     var infoButtonBg:Shape;
     var infoButtonIcon:Bitmap;
+    var infoButtonFallback:Shape;
 
     // ── Overlay About ─────────────────────────────────────────────────────────
     var projectInfoOverlay:ProjectInfoOverlay;
@@ -263,9 +264,16 @@ class MainView extends Sprite {
         infoButtonBg = new Shape();
         infoButton.addChild(infoButtonBg);
 
-        infoButtonIcon = new Bitmap(openfl.Assets.getBitmapData(AppConfig.resolveAssetPath(AppConfig.ABOUT_ICON_ASSET)));
-        infoButtonIcon.smoothing = true;
-        infoButton.addChild(infoButtonIcon);
+        var iconData = AppConfig.getBitmapData(AppConfig.ABOUT_ICON_ASSET);
+        if (iconData != null) {
+            infoButtonIcon = new Bitmap(iconData);
+            infoButtonIcon.smoothing = true;
+            infoButton.addChild(infoButtonIcon);
+        } else {
+            AppLogger.warn("Icono About no encontrado: " + AppConfig.ABOUT_ICON_ASSET);
+            infoButtonFallback = new Shape();
+            infoButton.addChild(infoButtonFallback);
+        }
 
         infoButton.addEventListener(MouseEvent.CLICK, function(_) { projectInfoOverlay.toggle(); });
         addChild(infoButton);
@@ -542,10 +550,20 @@ class MainView extends Sprite {
         infoButtonBg.graphics.drawRoundRect(0, 0, size, size, 18, 18);
         infoButtonBg.graphics.endFill();
 
-        infoButtonIcon.width  = size - 18;
-        infoButtonIcon.height = size - 18;
-        infoButtonIcon.x = (size - infoButtonIcon.width)  * 0.5;
-        infoButtonIcon.y = (size - infoButtonIcon.height) * 0.5;
+        if (infoButtonIcon != null) {
+            infoButtonIcon.width  = size - 18;
+            infoButtonIcon.height = size - 18;
+            infoButtonIcon.x = (size - infoButtonIcon.width)  * 0.5;
+            infoButtonIcon.y = (size - infoButtonIcon.height) * 0.5;
+        }
+
+        if (infoButtonFallback != null) {
+            infoButtonFallback.graphics.clear();
+            infoButtonFallback.graphics.beginFill(0x38BDF8);
+            infoButtonFallback.graphics.drawCircle(size * 0.5, size * 0.34, 3);
+            infoButtonFallback.graphics.drawRoundRect(size * 0.5 - 2, size * 0.46, 4, 15, 2, 2);
+            infoButtonFallback.graphics.endFill();
+        }
 
         infoButton.x = width - margin - size;
         infoButton.y = 24;

@@ -5,8 +5,8 @@ set -euo pipefail
 SDK_DIR="${ANDROID_HOME:-$HOME/Android/Sdk}"
 TOOLS_DIR="$SDK_DIR/cmdline-tools"
 NDK_VERSION="25.2.9519653"
-PLATFORM_VERSION="android-33"
-BUILD_TOOLS_VERSION="33.0.2"
+PLATFORM_VERSION="android-35"
+BUILD_TOOLS_VERSION="36.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_ZIP="$SCRIPT_DIR/commandlinetools-linux-11076708_latest.zip"
 DOWNLOADS_ZIP="$(find "$HOME/Descargas" "$HOME/Downloads" -maxdepth 1 -type f -name 'commandlinetools-linux-*_latest.zip' 2>/dev/null | head -n 1 || true)"
@@ -238,6 +238,7 @@ echo "[4/7] Instalando licencias y paquetes Android..."
 yes | sdkmanager --licenses
 
 sdkmanager \
+    "cmdline-tools;latest" \
     "platform-tools" \
     "platforms;$PLATFORM_VERSION" \
     "build-tools;$BUILD_TOOLS_VERSION" \

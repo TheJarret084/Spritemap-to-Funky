@@ -1,6 +1,6 @@
 package android;
 
-import openfl.Assets;
+import haxe.Timer;
 import openfl.Lib;
 import openfl.display.Bitmap;
 import openfl.display.BitmapData;
@@ -24,7 +24,13 @@ class SplashView extends Sprite {
         background = new Shape();
         addChild(background);
 
-        var bitmapData:BitmapData = Assets.getBitmapData(assetPath);
+        var bitmapData:BitmapData = AppConfig.getBitmapData(assetPath);
+        if (bitmapData == null) {
+            AppLogger.warn("Splash no encontrado: " + assetPath);
+            Timer.delay(finish, 1);
+            return;
+        }
+
         image = new Bitmap(bitmapData);
         image.smoothing = true;
         addChild(image);
