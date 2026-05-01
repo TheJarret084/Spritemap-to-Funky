@@ -13,11 +13,28 @@ import sys.FileSystem;
  * ImportadorMediaBackend
  *
  * - Crea las carpetas de media en el PRIMER INICIO de la app.
- * - Escanea spritemaps/ buscando carpetas que contengan los tres archivos
- *   requeridos: animations.json, spritemap.json, spritemap.png
+ * - Escanea spritemaps/ buscando carpetas que contengan timeline JSON,
+ *   atlas JSON y atlas PNG.
  * - Expone la lista de carpetas válidas para el navbar.
  */
 class ImportadorMediaBackend {
+    static var ANIMATION_JSON_NAMES = [
+        AppConfig.REQUIRED_FILE_1,
+        "Animation.json",
+        "animation.json"
+    ];
+    static var ATLAS_JSON_NAMES = [
+        AppConfig.REQUIRED_FILE_2,
+        "spritemap1.json",
+        "Spritemap.json",
+        "Spritemap1.json"
+    ];
+    static var ATLAS_PNG_NAMES = [
+        AppConfig.REQUIRED_FILE_3,
+        "spritemap1.png",
+        "Spritemap.png",
+        "Spritemap1.png"
+    ];
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Directorios base
@@ -88,10 +105,7 @@ class ImportadorMediaBackend {
 
     /**
      * Devuelve la lista de carpetas dentro de spritemaps/ que contienen los
-     * tres archivos requeridos:
-     *   - animations.json
-     *   - spritemap.json
-     *   - spritemap.png
+     * tres archivos requeridos: timeline JSON, atlas JSON y atlas PNG.
      *
      * Ordenada alfabéticamente. Lista vacía si no hay nada.
      */
@@ -114,6 +128,17 @@ class ImportadorMediaBackend {
         results = uniquePaths(results);
         results.sort(GestorArchivosBackend.compareStrings);
         AppLogger.log("Proyectos encontrados: " + results.length + " en " + existingRoots.join(" | "));
+        #end
+        return results;
+    }
+
+    public static function findProjectDirectoriesIn(root:String):Array<String> {
+        var results:Array<String> = [];
+        #if sys
+        if (!GestorArchivosBackend.directoryExists(root)) return results;
+        collectProjectDirectories(root, results, 0, 4);
+        results = uniquePaths(results);
+        results.sort(GestorArchivosBackend.compareStrings);
         #end
         return results;
     }
@@ -149,6 +174,17 @@ class ImportadorMediaBackend {
         return createProjectPaths(projectDir);
     }
 
+    public static function loadFirstProjectUnder(root:String):ProjectPaths {
+        if (containsProjectFiles(root)) return loadProjectFromDirectory(root);
+
+        var candidates = findProjectDirectoriesIn(root);
+        if (candidates.length == 0) {
+            throw "No encontré proyectos dentro de: " + root +
+                  " (necesita " + expectedProjectFilesLabel() + ")";
+        }
+        return createProjectPaths(candidates[0]);
+    }
+
     /**
      * Carga el PRIMER proyecto válido (comportamiento anterior).
      */
@@ -157,7 +193,7 @@ class ImportadorMediaBackend {
         var candidates = findProjectDirectories();
         if (candidates.length == 0) {
             throw "No encontré proyectos en " + getMediaSpritemapsSearchDirs().join(" | ") +
-                  " (necesita animations.json + spritemap.json + spritemap.png)";
+                  " (necesita " + expectedProjectFilesLabel() + ")";
         }
         return createProjectPaths(candidates[0]);
     }
@@ -170,7 +206,7 @@ class ImportadorMediaBackend {
             "Salida automática en:  " + getMediaProcessedDir()
         ];
         if (candidates.length == 0) {
-            lines.push("Todavía no hay carpetas con animations.json + spritemap.json + spritemap.png.");
+            lines.push("Todavía no hay carpetas con " + expectedProjectFilesLabel() + ".");
         } else {
             lines.push("Proyecto usado: " + candidates[0]);
             if (candidates.length > 1)
@@ -183,6 +219,33 @@ class ImportadorMediaBackend {
         ensureMediaDirectories();
         var baseName = deriveProjectBaseName(paths);
         return Path.join([getMediaProcessedDir(), sanitizeFolderName(baseName)]);
+    }
+
+    public static function expectedProjectFilesLabel():String {
+        return "animations.json/Animation.json + spritemap.json/spritemap1.json + spritemap.png/spritemap1.png";
+    }
+
+    public static function hasAnyProjectFile(path:String):Bool {
+        return findFirstExistingFile(path, ANIMATION_JSON_NAMES) != ""
+            || findFirstExistingFile(path, ATLAS_JSON_NAMES) != ""
+            || resolveAtlasPngPath(path, findFirstExistingFile(path, ATLAS_JSON_NAMES)) != "";
+    }
+
+    public static function containsProjectFiles(path:String):Bool {
+        return resolveProjectFiles(path) != null;
+    }
+
+    public static function missingProjectFileLabels(path:String):Array<String> {
+        var missing:Array<String> = [];
+        var animationJson = findFirstExistingFile(path, ANIMATION_JSON_NAMES);
+        var atlasJson = findFirstExistingFile(path, ATLAS_JSON_NAMES);
+        var atlasPng = resolveAtlasPngPath(path, atlasJson);
+
+        if (animationJson == "") missing.push("animations.json / Animation.json");
+        if (atlasJson == "") missing.push("spritemap.json / spritemap1.json");
+        if (atlasPng == "") missing.push("spritemap.png / spritemap1.png");
+
+        return missing;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -200,33 +263,27 @@ class ImportadorMediaBackend {
 
         if (depth >= maxDepth) return;
 
-        var children = FileSystem.readDirectory(path);
-        children.sort(GestorArchivosBackend.compareStrings);
-        for (entry in children) {
-            var child = Path.join([path, entry]);
-            if (GestorArchivosBackend.directoryExists(child)) {
-                collectProjectDirectories(child, out, depth + 1, maxDepth);
+        try {
+            var children = FileSystem.readDirectory(path);
+            children.sort(GestorArchivosBackend.compareStrings);
+            for (entry in children) {
+                var child = Path.join([path, entry]);
+                if (GestorArchivosBackend.directoryExists(child)) {
+                    collectProjectDirectories(child, out, depth + 1, maxDepth);
+                }
             }
+        } catch (error:Dynamic) {
+            AppLogger.warn("No pude leer carpeta media: " + path + " (" + Std.string(error) + ")");
         }
         #end
     }
 
-    /**
-     * Una carpeta es "proyecto válido" si tiene los tres archivos clave.
-     * Los nombres vienen de AppConfig para que sean fáciles de cambiar.
-     */
-    static function containsProjectFiles(path:String):Bool {
-        return GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_1]))   // animations.json
-            && GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_2]))   // spritemap.json
-            && GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_3]));  // spritemap.png
-    }
-
     static function createProjectPaths(projectDir:String):ProjectPaths {
-        var paths = new ProjectPaths();
-
-        paths.animationJson = Path.join([projectDir, AppConfig.REQUIRED_FILE_1]); // animations.json
-        paths.atlasJson     = Path.join([projectDir, AppConfig.REQUIRED_FILE_2]); // spritemap.json
-        paths.atlasPng      = Path.join([projectDir, AppConfig.REQUIRED_FILE_3]); // spritemap.png
+        var paths = resolveProjectFiles(projectDir);
+        if (paths == null) {
+            throw "La carpeta no contiene los archivos requeridos: " + projectDir +
+                  " (falta " + missingProjectFileLabels(projectDir).join(", ") + ")";
+        }
 
         // Opcionales
         var animsXml = Path.join([projectDir, "anims.xml"]);
@@ -237,6 +294,51 @@ class ImportadorMediaBackend {
 
         AppLogger.log("Proyecto cargado desde: " + projectDir);
         return paths;
+    }
+
+    static function resolveProjectFiles(projectDir:String):ProjectPaths {
+        var animationJson = findFirstExistingFile(projectDir, ANIMATION_JSON_NAMES);
+        var atlasJson = findFirstExistingFile(projectDir, ATLAS_JSON_NAMES);
+        var atlasPng = resolveAtlasPngPath(projectDir, atlasJson);
+
+        if (animationJson == "" || atlasJson == "" || atlasPng == "") return null;
+
+        var paths = new ProjectPaths();
+        paths.animationJson = animationJson;
+        paths.atlasJson = atlasJson;
+        paths.atlasPng = atlasPng;
+        return paths;
+    }
+
+    static function resolveAtlasPngPath(projectDir:String, atlasJson:String):String {
+        if (atlasJson != "") {
+            var sameBase = Path.withoutExtension(atlasJson) + ".png";
+            if (GestorArchivosBackend.fileExists(sameBase)) return sameBase;
+        }
+        return findFirstExistingFile(projectDir, ATLAS_PNG_NAMES);
+    }
+
+    static function findFirstExistingFile(projectDir:String, names:Array<String>):String {
+        if (GestorArchivosBackend.isBlank(projectDir) || names == null) return "";
+
+        for (name in names) {
+            var path = Path.join([projectDir, name]);
+            if (GestorArchivosBackend.fileExists(path)) return path;
+        }
+
+        #if sys
+        try {
+            if (!GestorArchivosBackend.directoryExists(projectDir)) return "";
+            var lowerNames = [for (name in names) name.toLowerCase()];
+            for (entry in FileSystem.readDirectory(projectDir)) {
+                if (lowerNames.indexOf(entry.toLowerCase()) == -1) continue;
+                var path = Path.join([projectDir, entry]);
+                if (GestorArchivosBackend.fileExists(path)) return path;
+            }
+        } catch (_:Dynamic) {}
+        #end
+
+        return "";
     }
 
     static function deriveProjectBaseName(paths:ProjectPaths):String {
@@ -290,9 +392,13 @@ class ImportadorMediaBackend {
 
     static function uniquePaths(paths:Array<String>):Array<String> {
         var out:Array<String> = [];
+        var seen:Array<String> = [];
         for (path in paths) {
             if (GestorArchivosBackend.isBlank(path)) continue;
-            if (out.indexOf(path) == -1) out.push(path);
+            var key = GestorArchivosBackend.normalizePathKey(path);
+            if (key == "" || seen.indexOf(key) != -1) continue;
+            seen.push(key);
+            out.push(path);
         }
         return out;
     }

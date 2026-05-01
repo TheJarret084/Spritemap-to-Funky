@@ -36,11 +36,11 @@ class ConsoleView extends Sprite {
     static inline var BTN_H:Float       = 32;
     static inline var BTN_W:Float       = 80;
 
-    static inline var COLOR_LOG:Int     = 0xE2E8F0;
-    static inline var COLOR_WARN:Int    = 0xFBBF24;
-    static inline var COLOR_ERR:Int     = 0xF87171;
-    static inline var COLOR_BG:Int      = 0x050D1A;
-    static inline var COLOR_CLEAR_BTN:Int = 0x334155;
+    static inline var COLOR_LOG:Int     = AppConfig.COLOR_TEXT;
+    static inline var COLOR_WARN:Int    = AppConfig.COLOR_WARN;
+    static inline var COLOR_ERR:Int     = AppConfig.COLOR_DANGER;
+    static inline var COLOR_BG:Int      = AppConfig.COLOR_SURFACE_ALT;
+    static inline var COLOR_CLEAR_BTN:Int = AppConfig.COLOR_ACCENT;
 
     // ── Internos ──────────────────────────────────────────────────────────────
     var _bg:Shape;
@@ -140,7 +140,7 @@ class ConsoleView extends Sprite {
         _clearBtn.addChild(_clearBg);
 
         _clearLabel = new TextField();
-        AppFonts.applyUi(_clearLabel, 12, 0xFFFFFF, true);
+        AppFonts.applyUi(_clearLabel, 12, AppConfig.COLOR_TEXT, true);
         _clearLabel.selectable   = false;
         _clearLabel.mouseEnabled = false;
         _clearLabel.text = "Limpiar";
@@ -158,13 +158,16 @@ class ConsoleView extends Sprite {
         // Fondo
         _bg.graphics.clear();
         _bg.graphics.beginFill(COLOR_BG);
-        _bg.graphics.drawRoundRect(0, 0, _w, _h, 12, 12);
+        _bg.graphics.lineStyle(3, AppConfig.COLOR_BORDER, 1);
+        _bg.graphics.drawRect(0, 0, _w, _h);
         _bg.graphics.endFill();
 
         // Máscara viewport
+        var viewW = Math.max(20, _w - PADDING * 2);
+        var viewH = Math.max(24, _h - BTN_H - PADDING * 2 - 8);
         _mask.graphics.clear();
         _mask.graphics.beginFill(0xFFFFFF);
-        _mask.graphics.drawRect(0, 0, _w, _h - BTN_H - 6);
+        _mask.graphics.drawRect(PADDING, PADDING, viewW, viewH);
         _mask.graphics.endFill();
 
         _viewport.x = PADDING;
@@ -172,8 +175,9 @@ class ConsoleView extends Sprite {
 
         // Botón limpiar
         _clearBg.graphics.clear();
-        _clearBg.graphics.beginFill(COLOR_CLEAR_BTN);
-        _clearBg.graphics.drawRoundRect(0, 0, BTN_W, BTN_H, 10, 10);
+        _clearBg.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        _clearBg.graphics.lineStyle(3, COLOR_CLEAR_BTN, 1);
+        _clearBg.graphics.drawRect(0, 0, BTN_W, BTN_H);
         _clearBg.graphics.endFill();
 
         _clearLabel.x = (BTN_W - _clearLabel.textWidth) * 0.5 - 2;
@@ -201,16 +205,15 @@ class ConsoleView extends Sprite {
         AppFonts.applyMono(tf, FONT_SIZE, color);
         tf.textColor  = color;
         tf.selectable = true;
-        tf.multiline  = false;
-        tf.wordWrap   = false;
+        tf.multiline  = true;
+        tf.wordWrap   = true;
         tf.text       = line;
-        tf.width      = _w - PADDING * 2 - 8;
-        tf.height     = LINE_H + 4;
+        tf.width      = Math.max(20, _w - PADDING * 2 - 8);
+        tf.height     = rowHeight(tf);
 
-        var y = _rows.length * (LINE_H + 2);
-        tf.y = y;
         _content.addChild(tf);
         _rows.push(tf);
+        _relayoutRows();
     }
 
     function _clearRows():Void {
@@ -222,9 +225,12 @@ class ConsoleView extends Sprite {
 
     function _relayoutRows():Void {
         var w = _w - PADDING * 2 - 8;
+        var y = 0.0;
         for (i in 0..._rows.length) {
-            _rows[i].y     = i * (LINE_H + 2);
-            _rows[i].width = w;
+            _rows[i].width = Math.max(20, w);
+            _rows[i].height = rowHeight(_rows[i]);
+            _rows[i].y = y;
+            y += _rows[i].height + 2;
         }
         _updateScroll();
     }
@@ -234,17 +240,25 @@ class ConsoleView extends Sprite {
     // ─────────────────────────────────────────────────────────────────────────
 
     function _scrollToBottom():Void {
-        var maxScroll = Math.max(0, _content.height - (_h - BTN_H - PADDING * 2));
+        var maxScroll = Math.max(0, _content.height - viewportHeight());
         _scrollY = maxScroll;
         _updateScroll();
     }
 
     function _updateScroll():Void {
-        var viewH   = _h - BTN_H - PADDING * 2;
+        var viewH   = viewportHeight();
         var maxScroll = Math.max(0, _content.height - viewH);
         if (_scrollY < 0) _scrollY = 0;
         if (_scrollY > maxScroll) _scrollY = maxScroll;
         _content.y = -_scrollY;
+    }
+
+    function viewportHeight():Float {
+        return Math.max(24, _h - BTN_H - PADDING * 2 - 8);
+    }
+
+    function rowHeight(tf:TextField):Float {
+        return Math.max(LINE_H + 4, tf.textHeight + 8);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -9,8 +9,10 @@ class AndroidFilePicker {
     static var registered:Bool = false;
     static var registerCallback:(Dynamic)->Void;
     static var browseFile:(String, String)->Void;
+    static var browseDirectory:(String)->Void;
     static var saveFileToUser:(String, String, String)->Void;
     static var getWorkspaceRootBridge:Void->String;
+    static var getExternalMediaRootBridge:Void->String;
     static var clearWorkspaceBridge:Void->Void;
     static var callbackBridge = new AndroidFilePickerCallback();
     #end
@@ -35,6 +37,30 @@ class AndroidFilePicker {
         }
         #else
         onError("AndroidFilePicker sólo existe en Android.");
+        return false;
+        #end
+    }
+
+    public static function openDirectory(title:String, onComplete:String->Void, onError:String->Void):Bool {
+        #if android
+        ensureInitialized();
+        if (browseDirectory == null) {
+            onError("El selector de carpetas no está disponible.");
+            return false;
+        }
+
+        callbackBridge.setHandlers(onComplete, onError);
+
+        try {
+            browseDirectory(title);
+            return true;
+        } catch (error:Dynamic) {
+            callbackBridge.clearHandlers();
+            onError("No pude abrir el selector de carpetas: " + Std.string(error));
+            return false;
+        }
+        #else
+        onError("El selector de carpetas sólo existe en Android.");
         return false;
         #end
     }
@@ -78,6 +104,21 @@ class AndroidFilePicker {
         #end
     }
 
+    public static function getExternalMediaRoot():String {
+        #if android
+        ensureInitialized();
+        if (getExternalMediaRootBridge == null) return "";
+
+        try {
+            return getExternalMediaRootBridge();
+        } catch (_:Dynamic) {
+            return "";
+        }
+        #else
+        return "";
+        #end
+    }
+
     public static function clearWorkspace():Void {
         #if android
         ensureInitialized();
@@ -108,6 +149,13 @@ class AndroidFilePicker {
             false,
             true
         );
+        browseDirectory = JNI.createStaticMethod(
+            "org/haxe/extension/AndroidFilePicker",
+            "browseDirectory",
+            "(Ljava/lang/String;)V",
+            false,
+            true
+        );
         saveFileToUser = JNI.createStaticMethod(
             "org/haxe/extension/AndroidFilePicker",
             "saveFileToUser",
@@ -118,6 +166,13 @@ class AndroidFilePicker {
         getWorkspaceRootBridge = JNI.createStaticMethod(
             "org/haxe/extension/AndroidFilePicker",
             "getWorkspaceRoot",
+            "()Ljava/lang/String;",
+            false,
+            true
+        );
+        getExternalMediaRootBridge = JNI.createStaticMethod(
+            "org/haxe/extension/AndroidFilePicker",
+            "getExternalMediaRoot",
             "()Ljava/lang/String;",
             false,
             true

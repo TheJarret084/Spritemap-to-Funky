@@ -66,8 +66,20 @@ class AppConfig {
     public static inline var SPLASH_DURATION_MS:Int = 2200;
     public static inline var SPLASH_FADE_MS:Int     = 360;
 
-    // ── Colores ───────────────────────────────────────────────────────────────
-    public static inline var BACKGROUND_COLOR:Int = 0x050816;
+    // ── Tema oscuro ──────────────────────────────────────────────────────────
+    public static inline var BACKGROUND_COLOR:Int    = 0x0B1020;
+    public static inline var COLOR_SURFACE:Int       = 0x111827;
+    public static inline var COLOR_SURFACE_ALT:Int   = 0x182235;
+    public static inline var COLOR_PANEL:Int         = 0x0F172A;
+    public static inline var COLOR_TEXT:Int          = 0xF8FAFC;
+    public static inline var COLOR_MUTED:Int         = 0x94A3B8;
+    public static inline var COLOR_BORDER:Int        = 0x334155;
+    public static inline var COLOR_ACCENT:Int        = 0x58B537;
+    public static inline var COLOR_ACCENT_SOFT:Int   = 0x123A24;
+    public static inline var COLOR_INFO:Int          = 0x38BDF8;
+    public static inline var COLOR_WARN:Int          = 0xFBBF24;
+    public static inline var COLOR_DANGER:Int        = 0xF87171;
+    public static inline var COLOR_DANGER_SOFT:Int   = 0x3A1518;
 
     // ── Diálogos ──────────────────────────────────────────────────────────────
     public static inline var SAVE_DIALOG_TITLE:String = "Guardar ZIP";
@@ -104,12 +116,15 @@ class AppConfig {
 
     /** /sdcard/Android/media/com.app/  ── visible al usuario, sin permisos extra */
     public static function getMediaDir():String {
+        var fromBridge = normalizeDir(AndroidFilePicker.getExternalMediaRoot());
+        if (fromBridge != "") return fromBridge;
         return "/sdcard/Android/media/" + PACKAGE_NAME + "/";
     }
 
     /** Rutas candidatas para builds/dispositivos con variaciones de storage. */
     public static function getMediaDirCandidates():Array<String> {
         var candidates = [
+            getMediaDir(),
             "/sdcard/Android/media/" + PACKAGE_NAME + "/",
             "/storage/emulated/0/Android/media/" + PACKAGE_NAME + "/",
             "/sdcard/Android/media/package_name/",
@@ -154,6 +169,13 @@ class AppConfig {
         return getInternalDir() + "jejeje.mp4";
     }
     #end
+
+    static function normalizeDir(path:String):String {
+        if (path == null) return "";
+        var clean = StringTools.trim(path);
+        if (clean == "") return "";
+        return StringTools.endsWith(clean, "/") ? clean : clean + "/";
+    }
     #end
 
     // ─────────────────────────────────────────────────────────────────────────

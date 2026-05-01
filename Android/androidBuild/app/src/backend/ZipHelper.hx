@@ -2,7 +2,7 @@ package backend;
 
 import haxe.zip.Writer;
 import haxe.zip.Entry;
-import haxe.zip.Tools;
+import haxe.crypto.Crc32;
 import sys.FileSystem;
 import sys.io.File;
 
@@ -17,9 +17,12 @@ class ZipHelper {
     }
 
     static function agregarCarpeta(base:String, current:String, entries:List<Entry>):Void {
-        for (item in FileSystem.readDirectory(current)) {
+        var items = FileSystem.readDirectory(current);
+        items.sort(Reflect.compare);
+
+        for (item in items) {
             var fullPath = current + "/" + item;
-            var zipName = fullPath.substr(base.length + 1); // ruta relativa
+            var zipName = sanitizeZipPath(fullPath.substr(base.length + 1)); // ruta relativa
 
             if (FileSystem.isDirectory(fullPath)) {
                 agregarCarpeta(base, fullPath, entries);
@@ -32,11 +35,19 @@ class ZipHelper {
                     compressed: false,
                     dataSize: datos.length,
                     data: datos,
-                    crc32: null
+                    crc32: Crc32.make(datos)
                 };
-                Tools.compress(entry, 6);
+                haxe.zip.Tools.compress(entry, 6);
                 entries.add(entry);
             }
         }
+    }
+
+    static function sanitizeZipPath(path:String):String {
+        var parts:Array<String> = [];
+        for (part in path.split("/")) {
+            if (part != "") parts.push(Tools.sanitizeName(part));
+        }
+        return parts.join("/");
     }
 }

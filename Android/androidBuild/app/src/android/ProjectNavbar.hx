@@ -3,6 +3,7 @@ package android;
 import android.AppLogger;
 import android.AppConfig;
 import android.gestor.GestorArchivosBackend;
+import android.gestor.ImportadorMediaBackend;
 import haxe.io.Path;
 import openfl.display.Shape;
 import openfl.display.Sprite;
@@ -26,20 +27,17 @@ class ProjectEntry {
     public function new(folderPath:String) {
         this.folderPath    = folderPath;
         this.folderName    = Path.withoutDirectory(folderPath);
-        this.hasAnimations = GestorArchivosBackend.fileExists(Path.join([folderPath, AppConfig.REQUIRED_FILE_1]));
-        this.hasSpritemap  = GestorArchivosBackend.fileExists(Path.join([folderPath, AppConfig.REQUIRED_FILE_2]));
-        this.hasPng        = GestorArchivosBackend.fileExists(Path.join([folderPath, AppConfig.REQUIRED_FILE_3]));
+        var missing = ImportadorMediaBackend.missingProjectFileLabels(folderPath);
+        this.hasAnimations = missing.indexOf("animations.json / Animation.json") == -1;
+        this.hasSpritemap  = missing.indexOf("spritemap.json / spritemap1.json") == -1;
+        this.hasPng        = missing.indexOf("spritemap.png / spritemap1.png") == -1;
     }
 
     public var isComplete(get, never):Bool;
     function get_isComplete() return hasAnimations && hasSpritemap && hasPng;
 
     public function missingList():Array<String> {
-        var m = [];
-        if (!hasAnimations) m.push(AppConfig.REQUIRED_FILE_1);
-        if (!hasSpritemap)  m.push(AppConfig.REQUIRED_FILE_2);
-        if (!hasPng)        m.push(AppConfig.REQUIRED_FILE_3);
-        return m;
+        return ImportadorMediaBackend.missingProjectFileLabels(folderPath);
     }
 }
 
@@ -90,12 +88,12 @@ class ProjectNavbar extends Sprite {
     static inline var PANEL_W:Float     = 430;
     static inline var CORNER:Float      = 10;
 
-    static inline var C_OK_BG:Int   = 0x14532D;
-    static inline var C_OK_TXT:Int  = 0x86EFAC;
-    static inline var C_ERR_BG:Int  = 0x450A0A;
-    static inline var C_ERR_TXT:Int = 0xFCA5A5;
-    static inline var C_SEL_BG:Int  = 0x1E3A5F;
-    static inline var C_PANEL:Int   = 0x0D1526;
+    static inline var C_OK_BG:Int   = AppConfig.COLOR_ACCENT_SOFT;
+    static inline var C_OK_TXT:Int  = AppConfig.COLOR_TEXT;
+    static inline var C_ERR_BG:Int  = AppConfig.COLOR_DANGER_SOFT;
+    static inline var C_ERR_TXT:Int = AppConfig.COLOR_DANGER;
+    static inline var C_SEL_BG:Int  = 0x1E4D32;
+    static inline var C_PANEL:Int   = AppConfig.COLOR_PANEL;
 
     public function new() {
         super();
@@ -115,10 +113,9 @@ class ProjectNavbar extends Sprite {
         _entries = [];
 
         #if sys
-        var roots = AppConfig.getSpritemapsDirCandidates();
+        var roots = _existingSpritemapsRoots();
         var dirs:Array<String> = [];
         for (root in roots) {
-            if (!GestorArchivosBackend.directoryExists(root)) continue;
             _collectDirs(root, dirs, 0, 3);
         }
         dirs.sort(GestorArchivosBackend.compareStrings);
@@ -155,11 +152,11 @@ class ProjectNavbar extends Sprite {
         _triggerBtn.addChild(_triggerBg);
 
         _triggerLabel = new TextField();
-        AppFonts.applyUi(_triggerLabel, 13, 0xE2E8F0, true);
+        AppFonts.applyUi(_triggerLabel, 13, AppConfig.COLOR_TEXT, true);
         _triggerLabel.selectable   = false;
         _triggerLabel.mouseEnabled = false;
         _triggerLabel.autoSize     = openfl.text.TextFieldAutoSize.LEFT;
-        _triggerLabel.text = "📁 Proyectos ▾";
+        _triggerLabel.text = "Proyectos v";
         _triggerBtn.addChild(_triggerLabel);
 
         _triggerBtn.addEventListener(MouseEvent.CLICK, function(_) {
@@ -179,7 +176,7 @@ class ProjectNavbar extends Sprite {
         _panel.addChild(_list);
 
         _emptyField = new TextField();
-        AppFonts.applyUi(_emptyField, 12, 0x64748B);
+        AppFonts.applyUi(_emptyField, 12, AppConfig.COLOR_MUTED);
         _emptyField.selectable   = false;
         _emptyField.mouseEnabled = false;
         _emptyField.multiline    = true;
@@ -192,8 +189,9 @@ class ProjectNavbar extends Sprite {
     function _drawTrigger():Void {
         var tw = _triggerLabel.textWidth + BTN_PAD * 2 + 10;
         _triggerBg.graphics.clear();
-        _triggerBg.graphics.beginFill(_open ? 0x1D4ED8 : 0x1E293B);
-        _triggerBg.graphics.drawRoundRect(0, 0, tw, BTN_H, CORNER, CORNER);
+        _triggerBg.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        _triggerBg.graphics.lineStyle(3, _open ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_BORDER, 1);
+        _triggerBg.graphics.drawRect(0, 0, tw, BTN_H);
         _triggerBg.graphics.endFill();
         _triggerLabel.x = BTN_PAD;
         _triggerLabel.y = (BTN_H - 18) * 0.5 - 2;
@@ -202,7 +200,7 @@ class ProjectNavbar extends Sprite {
     function _updateLabel():Void {
         var total    = _entries.length;
         var complete = _entries.filter(function(e) return e.isComplete).length;
-        _triggerLabel.text = "📁 Proyectos (" + complete + "/" + total + ") " + (_open ? "▴" : "▾");
+        _triggerLabel.text = "Proyectos (" + complete + "/" + total + ") " + (_open ? "^" : "v");
         _drawTrigger();
     }
 
@@ -258,7 +256,10 @@ class ProjectNavbar extends Sprite {
         _emptyField.y = 12;
         _emptyField.width  = PANEL_W - 24;
         _emptyField.height = 96;
-        _emptyField.text   = "No hay carpetas en:\n" + AppConfig.getSpritemapsDirCandidates().join("\n");
+        var rootsForMessage = _existingSpritemapsRoots();
+        if (rootsForMessage.length == 0) rootsForMessage = [ImportadorMediaBackend.getMediaSpritemapsDir()];
+        _emptyField.text   = "No hay carpetas en:\n" + rootsForMessage.join("\n") +
+            "\n\nFormato: " + ImportadorMediaBackend.expectedProjectFilesLabel();
 
         var y = 8.0;
         for (i in 0..._entries.length) {
@@ -272,9 +273,9 @@ class ProjectNavbar extends Sprite {
         var panelH   = Math.min(contentH, PANEL_MAX_H);
 
         _panelBg.graphics.clear();
-        _panelBg.graphics.beginFill(C_PANEL, 0.98);
-        _panelBg.graphics.lineStyle(1, 0x1E3A5F, 0.8);
-        _panelBg.graphics.drawRoundRect(0, 0, PANEL_W, panelH, CORNER, CORNER);
+        _panelBg.graphics.beginFill(C_PANEL, 1);
+        _panelBg.graphics.lineStyle(4, AppConfig.COLOR_BORDER, 1);
+        _panelBg.graphics.drawRect(0, 0, PANEL_W, panelH);
         _panelBg.graphics.endFill();
     }
 
@@ -289,22 +290,23 @@ class ProjectNavbar extends Sprite {
         // Fondo
         var bg = new Shape();
         var bgColor = isSelected ? C_SEL_BG : (isOk ? C_OK_BG : C_ERR_BG);
-        bg.graphics.beginFill(bgColor, 0.92);
-        bg.graphics.drawRoundRect(8, 0, PANEL_W - 16, ROW_H, 8, 8);
+        bg.graphics.beginFill(bgColor, 1);
+        bg.graphics.lineStyle(3, isOk ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_DANGER, 1);
+        bg.graphics.drawRect(8, 0, PANEL_W - 16, ROW_H);
         bg.graphics.endFill();
         row.addChild(bg);
 
         // Dot de estado
         var dot = new Shape();
-        dot.graphics.beginFill(isOk ? 0x4ADE80 : 0xF87171);
-        dot.graphics.drawCircle(22, ROW_H * 0.5, 6);
+        dot.graphics.beginFill(isOk ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_DANGER);
+        dot.graphics.drawRect(17, ROW_H * 0.5 - 5, 10, 10);
         dot.graphics.endFill();
         row.addChild(dot);
 
         // Nombre
         var nameW:Float = isOk ? (PANEL_W - 50) : (PANEL_W - 54) * 0.52;
         var nameField = new TextField();
-        AppFonts.applyUi(nameField, 14, isOk ? C_OK_TXT : 0xE2E8F0, true);
+        AppFonts.applyUi(nameField, 14, isOk ? C_OK_TXT : AppConfig.COLOR_TEXT, true);
         nameField.selectable   = false;
         nameField.mouseEnabled = false;
         nameField.text  = entry.folderName;
@@ -350,12 +352,30 @@ class ProjectNavbar extends Sprite {
     //  Escaneo
     // ─────────────────────────────────────────────────────────────────────────
 
+    function _existingSpritemapsRoots():Array<String> {
+        var out:Array<String> = [];
+        #if sys
+        var candidates = [ImportadorMediaBackend.getMediaSpritemapsDir()];
+        for (path in AppConfig.getSpritemapsDirCandidates()) candidates.push(path);
+
+        var seen:Array<String> = [];
+        for (path in candidates) {
+            if (!GestorArchivosBackend.directoryExists(path)) continue;
+            var key = GestorArchivosBackend.normalizePathKey(path);
+            if (key == "" || seen.indexOf(key) != -1) continue;
+            seen.push(key);
+            out.push(path);
+        }
+        #end
+        return out;
+    }
+
     function _collectDirs(path:String, out:Array<String>, depth:Int, max:Int):Void {
         #if sys
         if (!GestorArchivosBackend.directoryExists(path)) return;
 
-        // Incluir si tiene al menos 1 archivo requerido (para mostrar incompletas)
-        if (_hasAnyRequired(path)) { out.push(path); return; }
+        // Incluir si tiene al menos 1 archivo del proyecto (para mostrar incompletas)
+        if (ImportadorMediaBackend.hasAnyProjectFile(path)) { out.push(path); return; }
         if (depth >= max) return;
 
         try {
@@ -370,17 +390,15 @@ class ProjectNavbar extends Sprite {
         #end
     }
 
-    function _hasAnyRequired(path:String):Bool {
-        return GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_1]))
-            || GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_2]))
-            || GestorArchivosBackend.fileExists(Path.join([path, AppConfig.REQUIRED_FILE_3]));
-    }
-
     function _uniquePaths(paths:Array<String>):Array<String> {
         var out:Array<String> = [];
+        var seen:Array<String> = [];
         for (path in paths) {
             if (path == null || StringTools.trim(path) == "") continue;
-            if (out.indexOf(path) == -1) out.push(path);
+            var key = GestorArchivosBackend.normalizePathKey(path);
+            if (key == "" || seen.indexOf(key) != -1) continue;
+            seen.push(key);
+            out.push(path);
         }
         return out;
     }

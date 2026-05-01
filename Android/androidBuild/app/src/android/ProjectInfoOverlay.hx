@@ -4,9 +4,9 @@ import android.AppConfig.ProjectInfoData;
 import android.AppConfig.ProjectInfoEntryData;
 import android.UiComponents.CardSection;
 import android.UiComponents.UiButton;
-import openfl.Assets;
 import openfl.Lib;
 import openfl.display.Bitmap;
+import openfl.display.BitmapData;
 import openfl.display.Shape;
 import openfl.display.Sprite;
 import openfl.net.URLRequest;
@@ -109,13 +109,13 @@ class ProjectInfoOverlay extends Sprite {
         card = new CardSection(projectInfo.panelTitle);
         addChild(card);
 
-        introField = createField(16, 0xE2E8F0, false);
-        projectField = createField(13, 0x93C5FD, false);
+        introField = createField(16, AppConfig.COLOR_TEXT, false);
+        projectField = createField(13, AppConfig.COLOR_INFO, false);
         teamList = new Sprite();
-        extraField = createField(12, 0x94A3B8, false);
+        extraField = createField(12, AppConfig.COLOR_MUTED, false);
 
         linkButton = new UiButton(projectInfo.linkLabel, 0x0EA5E9);
-        closeButton = new UiButton("Cerrar", 0x334155);
+        closeButton = new UiButton("Cerrar", AppConfig.COLOR_BORDER);
 
         card.content.addChild(introField);
         card.content.addChild(projectField);
@@ -137,7 +137,7 @@ class ProjectInfoOverlay extends Sprite {
 
     function refreshText():Void {
         introField.setMarkupText(projectInfo.projectName + "\n" + projectInfo.overviewLines.join("\n"));
-        projectField.setMarkupText("[b]Descarga del proyecto[/b]\n[color=#93C5FD]" + projectInfo.projectUrl + "[/color]");
+        projectField.setMarkupText("[b]Descarga del proyecto[/b]\n[color=#38BDF8]" + projectInfo.projectUrl + "[/color]");
         extraField.setMarkupText(projectInfo.extraLines.join("\n"));
     }
 
@@ -181,24 +181,22 @@ class ProjectInfoOverlay extends Sprite {
         if (iconPath != "") {
             var chosen = pickRandomImage(iconPath);
             if (chosen != null) {
-                try {
-                    var bmd = Assets.getBitmapData(chosen);
-                    if (bmd != null) {
-                        var scale = Math.min(COLLAB_IMG_MAX / bmd.width, COLLAB_IMG_MAX / bmd.height);
-                        scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.width);
-                        scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.height);
-                        scale = Math.min(scale, 1.0);
+                var bmd:BitmapData = AppConfig.getBitmapData(chosen);
+                if (bmd != null) {
+                    var scale = Math.min(COLLAB_IMG_MAX / bmd.width, COLLAB_IMG_MAX / bmd.height);
+                    scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.width);
+                    scale = Math.min(scale, COLLAB_IMG_SIZE / bmd.height);
+                    scale = Math.min(scale, 1.0);
 
-                        var bm = new Bitmap(bmd);
-                        bm.smoothing = true;
-                        bm.scaleX = scale;
-                        bm.scaleY = scale;
-                        bm.x = imgX + (COLLAB_IMG_SIZE - bm.width) * 0.5;
-                        bm.y = (rowHeight - bm.height) * 0.5;
-                        row.addChild(bm);
-                        imgLoaded = true;
-                    }
-                } catch (_:Dynamic) {}
+                    var bm = new Bitmap(bmd);
+                    bm.smoothing = true;
+                    bm.scaleX = scale;
+                    bm.scaleY = scale;
+                    bm.x = imgX + (COLLAB_IMG_SIZE - bm.width) * 0.5;
+                    bm.y = (rowHeight - bm.height) * 0.5;
+                    row.addChild(bm);
+                    imgLoaded = true;
+                }
             }
         }
 
@@ -221,13 +219,20 @@ class ProjectInfoOverlay extends Sprite {
 
     function pickRandomImage(folderPath:String):String {
         var exts = ["png", "jpg", "jpeg", "gif"];
-        var prefix = StringTools.startsWith(folderPath, "assets/") ? folderPath.substr("assets/".length) : folderPath;
+        var clean = StringTools.startsWith(folderPath, "assets/") ? folderPath.substr("assets/".length) : folderPath;
+        var direct = AppConfig.resolveAssetPath(clean);
+        if (AppConfig.assetExists(direct) && exts.indexOf(haxe.io.Path.extension(direct).toLowerCase()) >= 0) {
+            return direct;
+        }
+
+        var prefix = clean;
         if (!StringTools.endsWith(prefix, "/")) prefix += "/";
+        var prefixed = "assets/" + prefix;
 
         var results:Array<String> = [];
         try {
             for (assetPath in lime.utils.Assets.list()) {
-                if (!StringTools.startsWith(assetPath, prefix)) continue;
+                if (!StringTools.startsWith(assetPath, prefix) && !StringTools.startsWith(assetPath, prefixed)) continue;
                 var ext = haxe.io.Path.extension(assetPath).toLowerCase();
                 if (exts.indexOf(ext) >= 0) results.push(assetPath);
             }

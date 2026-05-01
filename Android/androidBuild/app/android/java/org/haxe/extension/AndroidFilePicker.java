@@ -1,9 +1,11 @@
 package org.haxe.extension;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 
 import org.haxe.lime.HaxeObject;
@@ -18,6 +20,7 @@ public class AndroidFilePicker extends Extension {
 
     private static final int REQUEST_OPEN_DOCUMENT = 43192;
     private static final int REQUEST_CREATE_DOCUMENT = 43193;
+    private static final int REQUEST_OPEN_TREE = 43194;
     private static HaxeObject callback;
     private static String pendingExtension = "";
     private static String pendingSaveSource = null;
@@ -56,6 +59,33 @@ public class AndroidFilePicker extends Extension {
                     activity.startActivityForResult(intent, REQUEST_OPEN_DOCUMENT);
                 } catch (Exception e) {
                     dispatchError("No pude abrir el explorador del teléfono: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    public static void browseDirectory(final String title) {
+        final Activity activity = mainActivity;
+        if (activity == null) {
+            dispatchError("No encontré la actividad principal de Android.");
+            return;
+        }
+
+        activity.runOnUiThread(new Runnable() {
+            @Override public void run() {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                    intent.addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+
+                    if (title != null && !title.isEmpty()) {
+                        intent.putExtra(Intent.EXTRA_TITLE, title);
+                    }
+
+                    activity.startActivityForResult(intent, REQUEST_OPEN_TREE);
+                } catch (Exception e) {
+                    dispatchError("No pude abrir el selector de carpetas: " + e.getMessage());
                 }
             }
         });
@@ -111,6 +141,46 @@ public class AndroidFilePicker extends Extension {
         return getWorkspaceDir(activity).getAbsolutePath();
     }
 
+    public static String getExternalMediaRoot() {
+        Activity activity = mainActivity;
+        if (activity == null) {
+            return "";
+        }
+
+        try {
+            File[] mediaDirs = activity.getExternalMediaDirs();
+            if (mediaDirs != null) {
+                for (File dir : mediaDirs) {
+                    if (dir == null) {
+                        continue;
+                    }
+                    if (!dir.exists()) {
+                        dir.mkdirs();
+                    }
+                    if (dir.exists() && dir.isDirectory()) {
+                        return dir.getAbsolutePath();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        try {
+            File fallback = activity.getExternalFilesDir(null);
+            if (fallback != null) {
+                if (!fallback.exists()) {
+                    fallback.mkdirs();
+                }
+                if (fallback.exists() && fallback.isDirectory()) {
+                    return fallback.getAbsolutePath();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        return "";
+    }
+
     public static void clearWorkspace() {
         Activity activity = mainActivity;
         if (activity == null) {
@@ -128,6 +198,10 @@ public class AndroidFilePicker extends Extension {
 
         if (requestCode == REQUEST_CREATE_DOCUMENT) {
             return handleSaveResult(resultCode, data);
+        }
+
+        if (requestCode == REQUEST_OPEN_TREE) {
+            return handleTreeResult(resultCode, data);
         }
 
         return true;
@@ -173,6 +247,51 @@ public class AndroidFilePicker extends Extension {
             }
         } catch (Exception e) {
             dispatchError("Error procesando archivo: " + e.getMessage());
+        }
+
+        return true;
+    }
+
+    private boolean handleTreeResult(int resultCode, Intent data) {
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) {
+            dispatchCancel();
+            return true;
+        }
+
+        Activity activity = mainActivity;
+        Uri treeUri = data.getData();
+
+        try {
+            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            try {
+                activity.getContentResolver().takePersistableUriPermission(treeUri, flags);
+            } catch (Exception ignored) {
+            }
+
+            String treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri);
+            Uri rootDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, treeDocumentId);
+            String folderName = resolveDocumentDisplayName(activity, rootDocumentUri);
+            if (folderName == null || folderName.trim().isEmpty()) {
+                folderName = "imported-folder";
+            }
+
+            File spritemapsDir = new File(getExternalMediaRoot(), "spritemaps");
+            if (!spritemapsDir.exists()) {
+                spritemapsDir.mkdirs();
+            }
+
+            File targetDir = makeUniqueDirectory(spritemapsDir, sanitizeName(folderName));
+            if (!targetDir.exists()) {
+                targetDir.mkdirs();
+            }
+
+            copyDocumentTree(activity.getContentResolver(), treeUri, treeDocumentId, targetDir);
+
+            if (callback != null) {
+                callback.call1("onPathSelected", targetDir.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            dispatchError("Error importando carpeta: " + e.getMessage());
         }
 
         return true;
@@ -275,6 +394,93 @@ public class AndroidFilePicker extends Extension {
         return last != null ? last : null;
     }
 
+    private static String resolveDocumentDisplayName(Activity activity, Uri documentUri) {
+        Cursor cursor = null;
+
+        try {
+            cursor = activity.getContentResolver().query(
+                documentUri,
+                new String[] { DocumentsContract.Document.COLUMN_DISPLAY_NAME },
+                null,
+                null,
+                null
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME);
+                if (index >= 0) {
+                    return cursor.getString(index);
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        String last = documentUri.getLastPathSegment();
+        return last != null ? last : null;
+    }
+
+    private static void copyDocumentTree(ContentResolver resolver, Uri treeUri, String documentId, File targetDir) throws Exception {
+        if (!targetDir.exists() && !targetDir.mkdirs()) {
+            throw new Exception("No pude crear carpeta destino: " + targetDir.getAbsolutePath());
+        }
+
+        Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId);
+        Cursor cursor = null;
+
+        try {
+            cursor = resolver.query(
+                childrenUri,
+                new String[] {
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE
+                },
+                null,
+                null,
+                null
+            );
+
+            if (cursor == null) {
+                return;
+            }
+
+            int idIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID);
+            int nameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME);
+            int mimeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE);
+
+            while (cursor.moveToNext()) {
+                String childId = idIndex >= 0 ? cursor.getString(idIndex) : "";
+                String displayName = nameIndex >= 0 ? cursor.getString(nameIndex) : "file";
+                String mimeType = mimeIndex >= 0 ? cursor.getString(mimeIndex) : "";
+
+                if (childId == null || childId.isEmpty()) {
+                    continue;
+                }
+
+                File childTarget = new File(targetDir, sanitizeName(displayName == null ? "file" : displayName));
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType)) {
+                    copyDocumentTree(resolver, treeUri, childId, childTarget);
+                } else {
+                    Uri childUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, childId);
+                    InputStream input = resolver.openInputStream(childUri);
+                    if (input == null) {
+                        continue;
+                    }
+
+                    FileOutputStream output = new FileOutputStream(makeUniqueFile(targetDir, sanitizeName(displayName)));
+                    copyStream(input, output);
+                }
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
     private static String buildFallbackName(String extension) {
         if (extension == null || extension.isEmpty()) {
             return "picked_file";
@@ -283,6 +489,9 @@ public class AndroidFilePicker extends Extension {
     }
 
     private static String sanitizeName(String value) {
+        if (value == null) {
+            value = buildFallbackName(pendingExtension);
+        }
         String out = value.replace("/", "_").replace("\\", "_").replace(":", "_");
         if (out.isEmpty()) {
             out = buildFallbackName(pendingExtension);
@@ -354,6 +563,21 @@ public class AndroidFilePicker extends Extension {
         int suffix = 1;
         while (candidate.exists()) {
             candidate = new File(directory, name + "_" + suffix + extension);
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private static File makeUniqueDirectory(File directory, String folderName) {
+        File candidate = new File(directory, folderName);
+        if (!candidate.exists()) {
+            return candidate;
+        }
+
+        int suffix = 1;
+        while (candidate.exists()) {
+            candidate = new File(directory, folderName + "_" + suffix);
             suffix++;
         }
 

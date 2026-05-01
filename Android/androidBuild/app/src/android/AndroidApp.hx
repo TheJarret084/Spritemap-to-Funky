@@ -150,7 +150,7 @@ class UnsupportedTargetView extends Sprite {
         super();
 
         var text = new TextField();
-        AppFonts.applyUi(text, 20, 0xFFFFFF, true);
+        AppFonts.applyUi(text, 20, AppConfig.COLOR_TEXT, true);
         text.selectable = false;
         text.multiline  = true;
         text.wordWrap   = true;

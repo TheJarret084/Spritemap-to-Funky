@@ -44,11 +44,12 @@ class Renderer {
         if (rel < 0) rel = 0;
 
         var base = rel + element.firstFrame;
-        if (element.loop == "SF") {
+        var loop = normalizeLoop(element.loop);
+        if (loop == "sf" || loop == "singleframe" || loop == "single_frame") {
             return Tools.clampInt(element.firstFrame, 0, childTotal - 1);
         }
 
-        if (element.loop == "PO") {
+        if (loop == "po" || loop == "playonce" || loop == "play_once") {
             return base < childTotal ? base : childTotal - 1;
         }
 
@@ -256,6 +257,11 @@ class Renderer {
     static function clampChannel(value:Float):Int {
         var intValue = Std.int(Math.round(value));
         return Tools.clampInt(intValue, 0, 255);
+    }
+
+    static function normalizeLoop(value:String):String {
+        if (value == null) return "";
+        return StringTools.trim(value).toLowerCase();
     }
 
     static function includeSpriteBounds(bounds:Bounds, transform:Transform, drawWidth:Int, drawHeight:Int):Void {

@@ -8,7 +8,6 @@ import android.UiComponents.CardSection;
 import android.UiComponents.UiBrowseMode;
 import android.UiComponents.UiButton;
 import android.UiComponents.UiInput;
-import android.UiComponents.UiToggle;
 import android.gestor.GestorArchivosBackend;
 import android.gestor.ImportadorMediaBackend;
 import android.AppConfig.ProjectInfoData;
@@ -52,7 +51,6 @@ class MainView extends Sprite {
     var filterInput:UiInput;
 
     // ── Controles ─────────────────────────────────────────────────────────────
-    var exportFramesToggle:UiToggle;
     var mediaImportButton:UiButton;
     var refreshButton:UiButton;
     var mediaExportButton:UiButton;
@@ -80,7 +78,7 @@ class MainView extends Sprite {
     // ── Estado ────────────────────────────────────────────────────────────────
     var paths:ProjectPaths;
     var projectInfo:ProjectInfoData;
-    var statusColor:Int = 0x334155;
+    var statusColor:Int = AppConfig.COLOR_BORDER;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Inicialización
@@ -116,8 +114,8 @@ class MainView extends Sprite {
         layout();
 
         // Logs iniciales (van a AppLogger → llegan a ConsoleView automáticamente)
-        AppLogger.log("Selecciona un proyecto desde el panel lateral ←");
-        AppLogger.log("O usa los inputs manuales en la card 'Archivos'.");
+        AppLogger.log("Importa una carpeta completa o selecciona un proyecto desde Proyectos.");
+        AppLogger.log("Los inputs manuales siguen disponibles por si necesitas rutas sueltas.");
         AppLogger.log("Entrada media: " + ImportadorMediaBackend.getMediaSpritemapsDir());
         AppLogger.log("Salida media:  " + ImportadorMediaBackend.getMediaProcessedDir());
 
@@ -139,14 +137,14 @@ class MainView extends Sprite {
         addChild(accentLayer);
 
         titleField = new TextField();
-        AppFonts.applyUi(titleField, 34, 0xF8FAFC, true);
+        AppFonts.applyUi(titleField, 34, AppConfig.COLOR_TEXT, true);
         titleField.selectable   = false;
         titleField.mouseEnabled = false;
         titleField.text = AppConfig.APP_TITLE;
         addChild(titleField);
 
         subtitleField = new TextField();
-        AppFonts.applyUi(subtitleField, 15, 0x94A3B8);
+        AppFonts.applyUi(subtitleField, 14, AppConfig.COLOR_MUTED);
         subtitleField.selectable   = false;
         subtitleField.mouseEnabled = false;
         subtitleField.multiline    = true;
@@ -158,7 +156,7 @@ class MainView extends Sprite {
         addChild(statusBadge);
 
         statusField = new TextField();
-        AppFonts.applyUi(statusField, 13, 0xE2E8F0, true);
+        AppFonts.applyUi(statusField, 13, AppConfig.COLOR_TEXT, true);
         statusField.selectable   = false;
         statusField.mouseEnabled = false;
         statusField.autoSize     = TextFieldAutoSize.LEFT;
@@ -190,27 +188,24 @@ class MainView extends Sprite {
         animsJsonInput     = new UiInput("anims.json (opcional)","Lista estilo Psych/FNF.",           OPEN_FILE, "json", "Selecciona anims.json");
         filterInput        = new UiInput("Filtro", "Filtra por nombre o símbolo.", NONE);
 
-        exportFramesToggle = new UiToggle("Exportar frames PNG", true);
-
-        mediaImportButton  = new UiButton("Cargar media",   0x0F766E);
-        refreshButton      = new UiButton("Refrescar anims",0x2563EB);
-        mediaExportButton  = new UiButton("Exportar media", 0x7C3AED);
-        exportButton       = new UiButton("Guardar ZIP",    0xEA580C);
-        allButton          = new UiButton("Todo",           0x1D4ED8);
-        noneButton         = new UiButton("Nada",           0x334155);
+        mediaImportButton  = new UiButton("Importar carpeta", AppConfig.COLOR_ACCENT);
+        refreshButton      = new UiButton("Procesar", AppConfig.COLOR_ACCENT);
+        mediaExportButton  = new UiButton("Exportar media", AppConfig.COLOR_ACCENT);
+        exportButton       = new UiButton("Guardar ZIP", AppConfig.COLOR_ACCENT);
+        allButton          = new UiButton("Todo", AppConfig.COLOR_ACCENT);
+        noneButton         = new UiButton("Nada", AppConfig.COLOR_ACCENT);
 
         inputsCard.content.addChild(animationJsonInput); // no funciona de aqui
         inputsCard.content.addChild(atlasJsonInput);
         inputsCard.content.addChild(atlasPngInput);
         inputsCard.content.addChild(animsXmlInput);
         inputsCard.content.addChild(animsJsonInput); // a aqui
-        inputsCard.content.addChild(exportFramesToggle); // estos demas si
         inputsCard.content.addChild(mediaImportButton);
         inputsCard.content.addChild(refreshButton);
         inputsCard.content.addChild(mediaExportButton);
         inputsCard.content.addChild(exportButton);
 
-        mediaImportButton.addEventListener(MouseEvent.CLICK, function(_) { loadProjectFromMedia(); });
+        mediaImportButton.addEventListener(MouseEvent.CLICK, function(_) { importProjectFolder(); });
         refreshButton.addEventListener(MouseEvent.CLICK,     function(_) { refreshProject(); });
         mediaExportButton.addEventListener(MouseEvent.CLICK, function(_) { runExportToMedia(); });
         exportButton.addEventListener(MouseEvent.CLICK,      function(_) { runExport(); });
@@ -223,14 +218,14 @@ class MainView extends Sprite {
 
     function buildAnimations():Void {
         selectionField = new TextField();
-        AppFonts.applyUi(selectionField, 13, 0x93C5FD, true);
+        AppFonts.applyUi(selectionField, 13, AppConfig.COLOR_TEXT, true);
         selectionField.selectable   = false;
         selectionField.mouseEnabled = false;
         selectionField.text = "0 seleccionadas";
         animationsCard.content.addChild(selectionField);
 
         helperField = new TextField();
-        AppFonts.applyUi(helperField, 12, 0x64748B);
+        AppFonts.applyUi(helperField, 12, AppConfig.COLOR_MUTED);
         helperField.selectable   = false;
         helperField.mouseEnabled = false;
         helperField.multiline    = true;
@@ -307,13 +302,47 @@ class MainView extends Sprite {
     function loadProjectFromMedia():Void {
         setStatus("Buscando en media/spritemaps...", 0x0F766E);
         try {
+            AppLogger.log(ImportadorMediaBackend.describeImport());
             var mediaPaths = ImportadorMediaBackend.loadProject();
             populateInputsFromPaths(mediaPaths);
-            AppLogger.log(ImportadorMediaBackend.describeImport());
             refreshProject();
         } catch (error:Dynamic) {
             AppLogger.err("Carga desde media falló: " + Std.string(error));
             setStatus("No encontré proyecto en media", 0x7C2D12);
+        }
+    }
+
+    function importProjectFolder():Void {
+        setStatus("Elige una carpeta de spritemap", AppConfig.COLOR_ACCENT);
+        mediaImportButton.enabled = false;
+
+        var opened = GestorArchivosBackend.importDirectoryToSpritemaps(
+            "Importar carpeta de spritemap",
+            function(importedPath:String) {
+                mediaImportButton.enabled = true;
+                AppLogger.log("Importada en: " + importedPath);
+
+                try {
+                    navbar.refresh();
+                    var importedPaths = ImportadorMediaBackend.loadFirstProjectUnder(importedPath);
+                    populateInputsFromPaths(importedPaths);
+                    refreshProject();
+                    setStatus("Carpeta importada", 0x15803D);
+                } catch (error:Dynamic) {
+                    AppLogger.err("La carpeta se copió, pero no encontré un proyecto válido: " + Std.string(error));
+                    setStatus("Importada, faltan archivos", 0x7C2D12);
+                }
+            },
+            function(message:String) {
+                mediaImportButton.enabled = true;
+                AppLogger.err("Importar carpeta falló: " + message);
+                setStatus("No pude importar carpeta", 0x7C2D12);
+            }
+        );
+
+        if (!opened) {
+            mediaImportButton.enabled = true;
+            setStatus("Selector no disponible", 0x7C2D12);
         }
     }
 
@@ -340,7 +369,7 @@ class MainView extends Sprite {
         mediaExportButton.enabled = false;
 
         try {
-            var result = Backend.exportProject(paths, animationsView.getSelectedItems(), exportFramesToggle.checked);
+            var result = Backend.exportProject(paths, animationsView.getSelectedItems(), false);
             if (result.log != "") AppLogger.log(result.log);
 
             if (result.filesWritten <= 0 || result.archivePath == "") {
@@ -386,7 +415,7 @@ class MainView extends Sprite {
         exportButton.enabled = mediaExportButton.enabled = false;
 
         try {
-            var result = Backend.exportProjectToMedia(paths, animationsView.getSelectedItems(), exportFramesToggle.checked);
+            var result = Backend.exportProjectToMedia(paths, animationsView.getSelectedItems(), false);
             if (result.log != "") AppLogger.log(result.log);
 
             if (result.filesWritten <= 0 || result.archivePath == "") {
@@ -454,9 +483,10 @@ class MainView extends Sprite {
         statusField.y = 34;
 
         statusBadge.graphics.clear();
-        statusBadge.graphics.beginFill(statusColor, 0.95);
-        statusBadge.graphics.drawRoundRect(rightEdge - statusField.textWidth - 36, 28,
-            statusField.textWidth + 34, 28, 14, 14);
+        statusBadge.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        statusBadge.graphics.lineStyle(3, statusColor, 1);
+        statusBadge.graphics.drawRect(rightEdge - statusField.textWidth - 36, 28,
+            statusField.textWidth + 34, 30);
         statusBadge.graphics.endFill();
     }
 
@@ -477,15 +507,16 @@ class MainView extends Sprite {
 
         // ── Header ────────────────────────────────────────────────────────────
         var headerRight = infoButton.x - 14;
+        drawHeaderFrames(width, height, margin, headerRight);
 
-        titleField.x      = margin;
-        titleField.y      = 24;
-        titleField.width  = Math.max(180, headerRight - margin);
+        titleField.x      = margin + 18;
+        titleField.y      = 14;
+        titleField.width  = Math.max(180, Math.min(360, headerRight - margin - 18));
         titleField.height = 42;
 
-        subtitleField.x      = margin;
-        subtitleField.y      = 70;
-        subtitleField.width  = Math.max(180, headerRight - margin);
+        subtitleField.x      = margin + 18;
+        subtitleField.y      = 60;
+        subtitleField.width  = Math.max(180, Math.min(360, headerRight - margin - 18));
         subtitleField.height = 38;
 
         // ── Navbar dropdown — debajo del subtítulo ────────────────────────────
@@ -498,42 +529,66 @@ class MainView extends Sprite {
         var contentTop = navbarY + 52;
         var gap  = 14.0;
         var fullW = width - margin * 2;
+        var compactLayout = width < 960;
 
-        if (width >= 960) {
+        if (width >= 680) {
             var topCardW = (fullW - gap) * 0.5;
-            var topH = Math.max(480.0, Math.min(680.0, height - contentTop - margin - 240));
+            var availableH = Math.max(540.0, height - contentTop - margin);
+            var inputsH = clamp(availableH * 0.46, 540.0, 620.0);
+            var animsH = clamp(availableH * 0.42, 390.0, 520.0);
 
             inputsCard.x = margin;
             inputsCard.y = contentTop;
-            inputsCard.setSize(topCardW, topH);
+            inputsCard.setSize(topCardW, inputsH);
 
             animationsCard.x = margin + topCardW + gap;
             animationsCard.y = contentTop;
-            animationsCard.setSize(topCardW, topH);
+            animationsCard.setSize(topCardW, animsH);
 
             logCard.x = margin;
-            logCard.y = contentTop + topH + gap;
-            logCard.setSize(fullW, Math.max(200.0, height - logCard.y - margin));
+            logCard.y = contentTop + Math.max(inputsH, animsH) + gap;
+            logCard.setSize(fullW, Math.max(220.0, height - logCard.y - margin));
         } else {
-            var nextY    = contentTop;
-            var inputsH  = 680.0;
-            var animsH   = 320.0;
+            var availableH = Math.max(420.0, height - contentTop - margin);
+            var splitBottom = width >= 620 && availableH >= 760;
 
-            inputsCard.x = margin;
-            inputsCard.y = nextY;
-            inputsCard.setSize(fullW, inputsH);
-            nextY += inputsH + gap;
+            if (splitBottom) {
+                var inputsH = clamp(availableH * 0.48, 540.0, 600.0);
+                var bottomH = Math.max(220.0, availableH - inputsH - gap);
+                var bottomW = (fullW - gap) * 0.5;
 
-            animationsCard.x = margin;
-            animationsCard.y = nextY;
-            animationsCard.setSize(fullW, animsH);
-            nextY += animsH + gap;
+                inputsCard.x = margin;
+                inputsCard.y = contentTop;
+                inputsCard.setSize(fullW, inputsH);
 
-            logCard.x = margin;
-            logCard.y = nextY;
-            logCard.setSize(fullW, Math.max(200.0, height - nextY - margin));
+                animationsCard.x = margin;
+                animationsCard.y = contentTop + inputsH + gap;
+                animationsCard.setSize(bottomW, bottomH);
+
+                logCard.x = margin + bottomW + gap;
+                logCard.y = animationsCard.y;
+                logCard.setSize(bottomW, bottomH);
+            } else {
+                var inputsH = clamp(availableH * 0.46, 430.0, 560.0);
+                var remainingH = Math.max(220.0, availableH - inputsH - gap * 2);
+                var animsH = Math.max(160.0, remainingH * 0.52);
+                var logH = Math.max(140.0, availableH - inputsH - animsH - gap * 2);
+
+                inputsCard.x = margin;
+                inputsCard.y = contentTop;
+                inputsCard.setSize(fullW, inputsH);
+
+                animationsCard.x = margin;
+                animationsCard.y = contentTop + inputsH + gap;
+                animationsCard.setSize(fullW, animsH);
+
+                logCard.x = margin;
+                logCard.y = animationsCard.y + animsH + gap;
+                logCard.setSize(fullW, Math.max(120.0, height - logCard.y - margin));
+            }
         }
 
+        setInputsCompact(compactLayout);
         layoutInputsCard();
         layoutAnimationsCard();
         layoutLogCard();
@@ -545,9 +600,9 @@ class MainView extends Sprite {
         var size = 46.0;
 
         infoButtonBg.graphics.clear();
-        infoButtonBg.graphics.beginFill(0x0F172A, 0.98);
-        infoButtonBg.graphics.lineStyle(2, 0x38BDF8, 0.45);
-        infoButtonBg.graphics.drawRoundRect(0, 0, size, size, 18, 18);
+        infoButtonBg.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        infoButtonBg.graphics.lineStyle(3, AppConfig.COLOR_ACCENT, 1);
+        infoButtonBg.graphics.drawRect(0, 0, size, size);
         infoButtonBg.graphics.endFill();
 
         if (infoButtonIcon != null) {
@@ -559,7 +614,7 @@ class MainView extends Sprite {
 
         if (infoButtonFallback != null) {
             infoButtonFallback.graphics.clear();
-            infoButtonFallback.graphics.beginFill(0x38BDF8);
+            infoButtonFallback.graphics.beginFill(AppConfig.COLOR_TEXT);
             infoButtonFallback.graphics.drawCircle(size * 0.5, size * 0.34, 3);
             infoButtonFallback.graphics.drawRoundRect(size * 0.5 - 2, size * 0.46, 4, 15, 2, 2);
             infoButtonFallback.graphics.endFill();
@@ -572,70 +627,71 @@ class MainView extends Sprite {
     function layoutInputsCard():Void {
         var cardWidth = inputsCard.innerWidth;
         var y = 0.0;
-        var rowGap = 88.0;
+        var compact = stage.stageWidth < 960 || inputsCard.innerHeight < 620;
+        var rowGap = compact ? 61.0 : 88.0;
 
         for (input in [animationJsonInput, atlasJsonInput, atlasPngInput, animsXmlInput, animsJsonInput]) {
+            input.setCompact(compact);
             input.x = 0;
             input.y = y;
             input.setWidth(cardWidth);
             y += rowGap;
         }
 
-        exportFramesToggle.x = 0;
-        exportFramesToggle.y = y;
-        exportFramesToggle.setSize(cardWidth);
-        y += 44;
-
         var buttonGap = 12.0;
         var buttonW   = (cardWidth - buttonGap) * 0.5;
+        var buttonH   = compact ? 46.0 : 52.0;
 
         mediaImportButton.x = 0;
         mediaImportButton.y = y;
-        mediaImportButton.setSize(buttonW, 52);
+        mediaImportButton.setSize(buttonW, buttonH);
 
         refreshButton.x = buttonW + buttonGap;
         refreshButton.y = y;
-        refreshButton.setSize(buttonW, 52);
-        y += 64;
+        refreshButton.setSize(buttonW, buttonH);
+        y += buttonH + 12;
 
         mediaExportButton.x = 0;
         mediaExportButton.y = y;
-        mediaExportButton.setSize(buttonW, 52);
+        mediaExportButton.setSize(buttonW, buttonH);
 
         exportButton.x = buttonW + buttonGap;
         exportButton.y = y;
-        exportButton.setSize(buttonW, 52);
+        exportButton.setSize(buttonW, buttonH);
     }
 
     function layoutAnimationsCard():Void {
+        var compact = animationsCard.innerWidth < 380 || animationsCard.innerHeight < 320;
         selectionField.x = 0;
         selectionField.y = 0;
         selectionField.width  = animationsCard.innerWidth;
         selectionField.height = 20;
 
+        filterInput.setCompact(compact);
         filterInput.x = 0;
-        filterInput.y = 26;
+        filterInput.y = compact ? 24 : 26;
         filterInput.setWidth(animationsCard.innerWidth);
 
-        var actionsY  = 116.0;
+        var actionsY  = compact ? 92.0 : 116.0;
         var buttonW   = (animationsCard.innerWidth - 10) * 0.5;
+        var buttonH   = compact ? 40.0 : 46.0;
 
         allButton.x  = 0;
         allButton.y  = actionsY;
-        allButton.setSize(buttonW, 46);
+        allButton.setSize(buttonW, buttonH);
 
         noneButton.x = buttonW + 10;
         noneButton.y = actionsY;
-        noneButton.setSize(buttonW, 46);
+        noneButton.setSize(buttonW, buttonH);
 
         helperField.x = 0;
-        helperField.y = 170;
+        helperField.y = compact ? 140 : 170;
         helperField.width  = animationsCard.innerWidth;
-        helperField.height = 36;
+        helperField.height = compact ? 30 : 36;
 
         animationsView.x = 0;
-        animationsView.y = 214;
-        animationsView.setSize(animationsCard.innerWidth, Math.max(60, animationsCard.innerHeight - 214));
+        animationsView.y = compact ? 176 : 214;
+        animationsView.setSize(animationsCard.innerWidth, Math.max(60, animationsCard.innerHeight - animationsView.y));
     }
 
     function layoutLogCard():Void {
@@ -649,14 +705,23 @@ class MainView extends Sprite {
         backgroundLayer.graphics.endFill();
 
         accentLayer.graphics.clear();
-        accentLayer.graphics.beginFill(0x0EA5E9, 0.14);
-        accentLayer.graphics.drawCircle(width * 0.16, height * 0.12, width * 0.22);
+    }
+
+    function drawHeaderFrames(width:Float, height:Float, margin:Float, headerRight:Float):Void {
+        accentLayer.graphics.clear();
+        accentLayer.graphics.lineStyle(4, AppConfig.COLOR_BORDER, 1);
+        accentLayer.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        accentLayer.graphics.drawRect(margin - 8, 4, Math.min(390, Math.max(280, headerRight - margin + 4)), 116);
         accentLayer.graphics.endFill();
-        accentLayer.graphics.beginFill(0xFB7185, 0.10);
-        accentLayer.graphics.drawCircle(width * 0.88, height * 0.18, width * 0.18);
-        accentLayer.graphics.endFill();
-        accentLayer.graphics.beginFill(0x22C55E, 0.10);
-        accentLayer.graphics.drawCircle(width * 0.72, height * 0.88, width * 0.20);
-        accentLayer.graphics.endFill();
+    }
+
+    function setInputsCompact(value:Bool):Void {
+        for (input in [animationJsonInput, atlasJsonInput, atlasPngInput, animsXmlInput, animsJsonInput, filterInput]) {
+            if (input != null) input.setCompact(value);
+        }
+    }
+
+    function clamp(value:Float, min:Float, max:Float):Float {
+        return Math.max(min, Math.min(max, value));
     }
 }

@@ -54,6 +54,8 @@ out*/
 
 /Android/androidBuild/app/bin
 /Android/androidBuild/app/bin/*
+/Android/androidBuild/dist/
+/Android/androidBuild/dist/*
 # /Android/androidBuild/cpp/build
 # /Android/androidBuild/cpp/build/*
 # /Android/androidBuild/build.sh
@@ -70,3 +72,6 @@ out*/
 
 # cosas
 /Android/androidBuild/bruh/
+/zips/
+/zips/*
+/zips/

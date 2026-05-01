@@ -105,6 +105,8 @@ class Exporter {
         var finalOutput = Tools.resolveOutputDir(animationJson, animsXml, animsJson, outputDir);
         var logs:Array<String> = [];
 
+        if (Tools.directoryExists(finalOutput))
+            Tools.deleteDirectory(finalOutput);
         Tools.ensureDirectory(finalOutput);
 
         var progressCurrent = 0;
@@ -161,14 +163,20 @@ class Exporter {
         var out:Array<AnimDef> = [];
         var data = Json.parse(Tools.readFileStripBom(path));
 
-        var main = Tools.field(data, "AN");
-        var mainName = main != null ? Tools.stringField(main, "N", "main") : "main";
-        if (!Tools.isBlank(mainName))
-            out.push(new AnimDef(mainName, mainName, []));
+        var main = getMainAnimation(data);
+        var mainName = getAnimationName(main, "main");
+        var mainLabels = loadMainFrameLabels(main, mainName);
 
-        var symbols = Tools.field(data, "SD");
-        for (symbol in Tools.arrayField(symbols, "S")) {
-            var symbolName = Tools.stringField(symbol, "SN", "");
+        if (mainLabels.length > 0) {
+            return mainLabels;
+        }
+
+        if (!Tools.isBlank(mainName)) {
+            out.push(new AnimDef(mainName, mainName, []));
+        }
+
+        for (symbol in getSymbolArray(data)) {
+            var symbolName = getSymbolName(symbol);
             if (!Tools.isBlank(symbolName))
                 out.push(new AnimDef(symbolName, symbolName, []));
         }
@@ -218,13 +226,15 @@ class Exporter {
 
     static function loadSymbols(data:Dynamic):Map<String, SymbolDef> {
         var symbols = new Map<String, SymbolDef>();
-        var symbolsRoot = Tools.field(data, "SD");
 
-        for (symbolJson in Tools.arrayField(symbolsRoot, "S")) {
+        for (symbolJson in getSymbolArray(data)) {
             var symbol = new SymbolDef();
-            symbol.name = Tools.stringField(symbolJson, "SN", "");
-            if (Tools.field(symbolJson, "TL") != null)
-                symbol.timeline = Parser.parseTimeline(Tools.field(symbolJson, "TL"));
+            symbol.name = getSymbolName(symbolJson);
+
+            var timelineJson = getTimelineJson(symbolJson);
+            if (timelineJson != null)
+                symbol.timeline = Parser.parseTimeline(timelineJson);
+
             if (!Tools.isBlank(symbol.name))
                 symbols.set(symbol.name, symbol);
         }
@@ -234,13 +244,101 @@ class Exporter {
 
     static function loadMainSymbol(data:Dynamic):SymbolDef {
         var symbol = new SymbolDef();
-        var animation = Tools.field(data, "AN");
+        var animation = getMainAnimation(data);
 
-        symbol.name = animation != null ? Tools.stringField(animation, "N", "main") : "main";
-        if (animation != null && Tools.field(animation, "TL") != null)
-            symbol.timeline = Parser.parseTimeline(Tools.field(animation, "TL"));
+        symbol.name = getAnimationName(animation, "main");
+
+        var timelineJson = getTimelineJson(animation);
+        if (timelineJson != null)
+            symbol.timeline = Parser.parseTimeline(timelineJson);
 
         return symbol;
+    }
+
+    static function getMainAnimation(data:Dynamic):Dynamic {
+        var animation = Tools.field(data, "AN");
+        return animation != null ? animation : Tools.field(data, "ANIMATION");
+    }
+
+    static function getAnimationName(animation:Dynamic, fallback:String):String {
+        if (animation == null) return fallback;
+
+        var compact = Tools.stringField(animation, "N", "");
+        if (!Tools.isBlank(compact)) return compact;
+
+        var verbose = Tools.stringField(animation, "SYMBOL_name", "");
+        return Tools.isBlank(verbose) ? fallback : verbose;
+    }
+
+    static function getSymbolArray(data:Dynamic):Array<Dynamic> {
+        var compact = Tools.field(data, "SD");
+        var compactSymbols = Tools.arrayField(compact, "S");
+        if (compactSymbols.length > 0) return compactSymbols;
+
+        var verbose = Tools.field(data, "SYMBOL_DICTIONARY");
+        return Tools.arrayField(verbose, "Symbols");
+    }
+
+    static function getSymbolName(symbol:Dynamic):String {
+        var compact = Tools.stringField(symbol, "SN", "");
+        if (!Tools.isBlank(compact)) return compact;
+        return Tools.stringField(symbol, "SYMBOL_name", "");
+    }
+
+    static function getTimelineJson(owner:Dynamic):Dynamic {
+        if (owner == null) return null;
+
+        var compact = Tools.field(owner, "TL");
+        if (compact != null) return compact;
+
+        return Tools.field(owner, "TIMELINE");
+    }
+
+    static function loadMainFrameLabels(animation:Dynamic, mainName:String):Array<AnimDef> {
+        var out:Array<AnimDef> = [];
+        var timeline = getTimelineJson(animation);
+        if (timeline == null || Tools.isBlank(mainName)) return out;
+
+        var layers = Tools.arrayField(timeline, "L");
+        if (layers.length > 0) {
+            collectFrameLabels(layers, "FR", "N", "I", "DU", mainName, out);
+            return out;
+        }
+
+        var verboseLayers = Tools.arrayField(timeline, "LAYERS");
+        collectFrameLabels(verboseLayers, "Frames", "name", "index", "duration", mainName, out);
+        return out;
+    }
+
+    static function collectFrameLabels(
+        layers:Array<Dynamic>,
+        framesField:String,
+        labelField:String,
+        startField:String,
+        durationField:String,
+        mainName:String,
+        out:Array<AnimDef>
+    ):Void {
+        var seen = new Map<String, Bool>();
+
+        for (layer in layers) {
+            for (frameJson in Tools.arrayField(layer, framesField)) {
+                var label = Tools.stringField(frameJson, labelField, "");
+                if (Tools.isBlank(label)) continue;
+
+                var start = Tools.intField(frameJson, startField, 0);
+                var duration = Tools.intField(frameJson, durationField, 1);
+                if (duration <= 0) duration = 1;
+
+                var key = label + ":" + start + ":" + duration;
+                if (seen.exists(key)) continue;
+                seen.set(key, true);
+
+                var indices:Array<Int> = [];
+                for (frame in start...start + duration) indices.push(frame);
+                out.push(new AnimDef(label, mainName, indices));
+            }
+        }
     }
 
     static function buildJobs(selected:Array<AnimDef>, mainSymbol:SymbolDef, symbols:Map<String, SymbolDef>):Array<ExportJob> {

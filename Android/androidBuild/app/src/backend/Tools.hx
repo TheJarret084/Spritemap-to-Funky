@@ -14,11 +14,14 @@ class Tools {
     }
 
     public static function readFileStripBom(path:String):String {
-        var content = File.getContent(path);
-        if (StringTools.startsWith(content, "\ufeff")) {
-            return content.substr(1);
+        var bytes = File.getBytes(path);
+        if (bytes.length >= 3
+            && bytes.get(0) == 0xEF
+            && bytes.get(1) == 0xBB
+            && bytes.get(2) == 0xBF) {
+            return bytes.sub(3, bytes.length - 3).toString();
         }
-        return content;
+        return bytes.toString();
     }
 
     public static function splitCsv(value:String):Array<String> {
@@ -61,14 +64,30 @@ class Tools {
     public static function sanitizeName(value:String):String {
         if (isBlank(value)) return "main";
 
-        var out = value;
-        out = StringTools.replace(out, " ", "_");
+        var buffer = new StringBuf();
+        var previousUnderscore = false;
 
-        for (bad in ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"]) {
-            out = StringTools.replace(out, bad, "_");
+        for (i in 0...value.length) {
+            var code = value.charCodeAt(i);
+            var keep = (code >= "A".code && code <= "Z".code)
+                || (code >= "a".code && code <= "z".code)
+                || (code >= "0".code && code <= "9".code)
+                || code == ".".code
+                || code == "-".code;
+
+            if (keep) {
+                buffer.addChar(code);
+                previousUnderscore = false;
+            } else if (!previousUnderscore) {
+                buffer.add("_");
+                previousUnderscore = true;
+            }
         }
 
-        return out;
+        var out = StringTools.trim(buffer.toString());
+        while (StringTools.startsWith(out, "_")) out = out.substr(1);
+        while (StringTools.endsWith(out, "_")) out = out.substr(0, out.length - 1);
+        return isBlank(out) ? "main" : out;
     }
 
     public static function field(value:Dynamic, name:String):Dynamic {
@@ -127,6 +146,21 @@ class Tools {
         if (!directoryExists(path)) {
             FileSystem.createDirectory(path);
         }
+    }
+
+    public static function deleteDirectory(path:String):Void {
+        if (!directoryExists(path)) return;
+
+        for (item in FileSystem.readDirectory(path)) {
+            var fullPath = Path.join([path, item]);
+            if (FileSystem.isDirectory(fullPath)) {
+                deleteDirectory(fullPath);
+            } else {
+                FileSystem.deleteFile(fullPath);
+            }
+        }
+
+        FileSystem.deleteDirectory(path);
     }
 
     public static function joinLines(lines:Array<String>):String {

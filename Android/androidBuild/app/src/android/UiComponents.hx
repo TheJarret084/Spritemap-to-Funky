@@ -33,7 +33,7 @@ class CardSection extends Sprite {
         addChild(background);
 
         titleField = new TextField();
-        AppFonts.applyUi(titleField, 20, 0xF9FAFB, true);
+        AppFonts.applyUi(titleField, 20, AppConfig.COLOR_TEXT, true);
         titleField.selectable = false;
         titleField.mouseEnabled = false;
         titleField.text = title;
@@ -45,8 +45,9 @@ class CardSection extends Sprite {
 
     public function setSize(width:Float, height:Float):Void {
         background.graphics.clear();
-        background.graphics.beginFill(0x0F172A, 0.94);
-        background.graphics.drawRoundRect(0, 0, width, height, 28, 28);
+        background.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        background.graphics.lineStyle(4, AppConfig.COLOR_BORDER, 1);
+        background.graphics.drawRect(0, 0, width, height);
         background.graphics.endFill();
 
         titleField.x = 18;
@@ -77,7 +78,7 @@ class UiButton extends Sprite {
     public function new(label:String, fillColor:Int = 0x2563EB) {
         super();
         this.fillColor = fillColor;
-        this.disabledColor = 0x334155;
+        this.disabledColor = AppConfig.COLOR_BORDER;
 
         buttonMode = true;
         useHandCursor = true;
@@ -87,7 +88,7 @@ class UiButton extends Sprite {
         addChild(background);
 
         labelField = new TextField();
-        AppFonts.applyUi(labelField, 18, 0xFFFFFF, true);
+        AppFonts.applyUi(labelField, 16, AppConfig.COLOR_TEXT, true);
         labelField.selectable = false;
         labelField.mouseEnabled = false;
         labelField.autoSize = TextFieldAutoSize.LEFT;
@@ -143,8 +144,9 @@ class UiButton extends Sprite {
         if (background == null) return;
 
         background.graphics.clear();
-        background.graphics.beginFill(enabledValue ? fillColor : disabledColor);
-        background.graphics.drawRoundRect(0, 0, widthValue, heightValue, 20, 20);
+        background.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        background.graphics.lineStyle(4, enabledValue ? fillColor : disabledColor, 1);
+        background.graphics.drawRect(0, 0, widthValue, heightValue);
         background.graphics.endFill();
 
         labelField.text = labelValue;
@@ -169,6 +171,7 @@ class UiInput extends Sprite {
     var browseMode:UiBrowseMode;
     var browseFilter:String;
     var browseTitle:String;
+    var compactValue:Bool = false;
 
     public function new(label:String, hint:String = "", browseMode:UiBrowseMode = OPEN_FILE, browseFilter:String = null, browseTitle:String = null) {
         super();
@@ -177,7 +180,7 @@ class UiInput extends Sprite {
         this.browseTitle = browseTitle != null ? browseTitle : label;
 
         labelField = new TextField();
-        AppFonts.applyUi(labelField, 15, 0xCBD5E1, true);
+        AppFonts.applyUi(labelField, 15, AppConfig.COLOR_TEXT, true);
         labelField.selectable = false;
         labelField.mouseEnabled = false;
         labelField.text = label;
@@ -188,8 +191,8 @@ class UiInput extends Sprite {
 
         field = new TextField();
         field.type = TextFieldType.INPUT;
-        AppFonts.applyUi(field, 16, 0xE2E8F0);
-        field.textColor = 0xE2E8F0;
+        AppFonts.applyUi(field, 15, AppConfig.COLOR_TEXT);
+        field.textColor = AppConfig.COLOR_TEXT;
         field.multiline = false;
         field.wordWrap = false;
         field.background = false;
@@ -198,7 +201,7 @@ class UiInput extends Sprite {
         addChild(field);
 
         hintField = new TextField();
-        AppFonts.applyUi(hintField, 12, 0x64748B);
+        AppFonts.applyUi(hintField, 12, AppConfig.COLOR_MUTED);
         hintField.selectable = false;
         hintField.mouseEnabled = false;
         hintField.text = hint;
@@ -222,7 +225,7 @@ class UiInput extends Sprite {
         } else {
             AppLogger.warn("Icono de explorar no encontrado: " + AppConfig.BROWSE_ICON_ASSET);
             var fallback = new Shape();
-            fallback.graphics.beginFill(0x38BDF8);
+            fallback.graphics.beginFill(AppConfig.COLOR_ACCENT);
             fallback.graphics.drawRoundRect(4, 9, 30, 16, 4, 4);
             fallback.graphics.drawRoundRect(7, 6, 12, 7, 3, 3);
             fallback.graphics.endFill();
@@ -286,20 +289,21 @@ class UiInput extends Sprite {
         labelField.x = 0;
         labelField.y = 0;
         labelField.width = width;
-        labelField.height = 20;
+        labelField.height = compactValue ? 18 : 20;
 
         background.graphics.clear();
-        background.graphics.beginFill(0x111827);
-        background.graphics.drawRoundRect(0, 24, width, 42, 16, 16);
+        background.graphics.beginFill(AppConfig.COLOR_SURFACE_ALT, 1);
+        background.graphics.lineStyle(3, AppConfig.COLOR_BORDER, 1);
+        background.graphics.drawRect(0, compactValue ? 21 : 24, width, compactValue ? 38 : 42);
         background.graphics.endFill();
 
         field.x = 12;
-        field.y = 31;
+        field.y = compactValue ? 27 : 31;
         field.width = width - 60;
         field.height = 24;
         if (browseButton != null) {
             browseButton.x = width - 44;
-            browseButton.y = 28;
+            browseButton.y = compactValue ? 25 : 28;
             var upState = cast(browseButton.upState, Sprite);
             if (upState != null && upState.numChildren > 0 && Std.isOfType(upState.getChildAt(0), openfl.display.Bitmap)) {
                 var icon:openfl.display.Bitmap = cast upState.getChildAt(0);
@@ -309,9 +313,15 @@ class UiInput extends Sprite {
         }
 
         hintField.x = 0;
-        hintField.y = 71;
+        hintField.y = compactValue ? 61 : 71;
         hintField.width = width;
         hintField.height = 18;
+        hintField.visible = !compactValue;
+    }
+
+    public function setCompact(value:Bool):Void {
+        compactValue = value;
+        setWidth(widthValue);
     }
 
     function get_text():String {
@@ -342,7 +352,7 @@ class UiToggle extends Sprite {
         addChild(box);
 
         labelField = new TextField();
-        AppFonts.applyUi(labelField, 16, 0xE2E8F0, true);
+        AppFonts.applyUi(labelField, 16, AppConfig.COLOR_TEXT, true);
         labelField.selectable = false;
         labelField.mouseEnabled = false;
         labelField.text = label;
@@ -375,12 +385,13 @@ class UiToggle extends Sprite {
 
     function draw(width:Float):Void {
         box.graphics.clear();
-        box.graphics.beginFill(checkedValue ? 0x22C55E : 0x1E293B);
-        box.graphics.drawRoundRect(0, 2, 28, 28, 10, 10);
+        box.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        box.graphics.lineStyle(4, checkedValue ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_BORDER, 1);
+        box.graphics.drawRect(0, 2, 28, 28);
         box.graphics.endFill();
 
         if (checkedValue) {
-            box.graphics.lineStyle(3, 0x04130A);
+            box.graphics.lineStyle(3, AppConfig.COLOR_TEXT);
             box.graphics.moveTo(8, 16);
             box.graphics.lineTo(13, 21);
             box.graphics.lineTo(21, 10);
@@ -428,7 +439,7 @@ class AnimationListView extends Sprite {
         viewport.mask = viewportMask;
 
         hintField = new TextField();
-        AppFonts.applyUi(hintField, 14, 0x64748B);
+        AppFonts.applyUi(hintField, 14, AppConfig.COLOR_MUTED);
         hintField.selectable = false;
         hintField.mouseEnabled = false;
         hintField.text = "No hay animaciones cargadas.";
@@ -445,7 +456,7 @@ class AnimationListView extends Sprite {
 
         viewportMask.graphics.clear();
         viewportMask.graphics.beginFill(0xFFFFFF);
-        viewportMask.graphics.drawRoundRect(0, 0, width, height, 18, 18);
+        viewportMask.graphics.drawRect(0, 0, width, height);
         viewportMask.graphics.endFill();
 
         hintField.x = 0;
@@ -522,17 +533,19 @@ class AnimationListView extends Sprite {
         var row = new Sprite();
 
         var bg = new Shape();
-        bg.graphics.beginFill(item.selected ? 0x172554 : 0x111827);
-        bg.graphics.drawRoundRect(0, 0, width - 4, height, 18, 18);
+        bg.graphics.beginFill(item.selected ? AppConfig.COLOR_ACCENT_SOFT : AppConfig.COLOR_SURFACE_ALT);
+        bg.graphics.lineStyle(3, item.selected ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_BORDER, 1);
+        bg.graphics.drawRect(0, 0, width - 4, height);
         bg.graphics.endFill();
         row.addChild(bg);
 
         var check = new Shape();
-        check.graphics.beginFill(item.selected ? 0x22C55E : 0x334155);
-        check.graphics.drawRoundRect(12, 12, 26, 26, 10, 10);
+        check.graphics.beginFill(AppConfig.COLOR_SURFACE, 1);
+        check.graphics.lineStyle(3, item.selected ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_BORDER, 1);
+        check.graphics.drawRect(12, 12, 26, 26);
         check.graphics.endFill();
         if (item.selected) {
-            check.graphics.lineStyle(3, 0x04130A);
+            check.graphics.lineStyle(3, AppConfig.COLOR_TEXT);
             check.graphics.moveTo(19, 25);
             check.graphics.lineTo(23, 29);
             check.graphics.lineTo(31, 18);
@@ -540,7 +553,7 @@ class AnimationListView extends Sprite {
         row.addChild(check);
 
         var title = new TextField();
-        AppFonts.applyUi(title, 16, 0xF8FAFC, true);
+        AppFonts.applyUi(title, 16, AppConfig.COLOR_TEXT, true);
         title.selectable = false;
         title.mouseEnabled = false;
         title.text = item.name;
@@ -551,7 +564,7 @@ class AnimationListView extends Sprite {
         row.addChild(title);
 
         var subtitle = new TextField();
-        AppFonts.applyUi(subtitle, 12, 0x94A3B8);
+        AppFonts.applyUi(subtitle, 12, AppConfig.COLOR_MUTED);
         subtitle.selectable = false;
         subtitle.mouseEnabled = false;
         subtitle.text = item.source + buildIndicesLabel(item.indices);
@@ -566,7 +579,21 @@ class AnimationListView extends Sprite {
 
     function buildIndicesLabel(indices:Array<Int>):String {
         if (indices == null || indices.length == 0) return "";
-        return " | indices: " + indices.join(",");
+        if (indices.length <= 12) return " | indices: " + indices.join(",");
+
+        var continuous = true;
+        for (i in 1...indices.length) {
+            if (indices[i] != indices[i - 1] + 1) {
+                continuous = false;
+                break;
+            }
+        }
+
+        if (continuous) {
+            return " | indices: " + indices[0] + ".." + indices[indices.length - 1] + " (" + indices.length + ")";
+        }
+
+        return " | indices: " + indices.slice(0, 8).join(",") + "... (" + indices.length + ")";
     }
 
     function onMouseWheel(event:MouseEvent):Void {

@@ -19,18 +19,24 @@
 
     <window width="720" height="1280"
             fps="60"
-            background="#050816"
+            background="#0B1020"
             orientation="portrait"
-            fullscreen="false"
+            fullscreen="true"
             if="android" />
 
     <source path="src" />
     <java path="android/java" if="android" />
     <!-- ASSETS -->
     <assets path="assets" rename="assets" />
+    <assets path="assets/fonts/Terminus" rename="fonts/Terminus" type="font" embed="true" />
+    <assets path="assets/fonts/DepartureMono" rename="fonts/DepartureMono" type="font" embed="true" />
 
     <haxelib name="openfl" />
     <haxelib name="lime" />
     <haxelib name="hxdiscord_rpc" />
 
 </project>
+
+<!--
+oye, puedes añadir un tema oscuro, y quita el exprotar frames png  y en el boton de "PROYECTOS"  solo salga las carpetas existentes de spritemaps/... porque llega a salir doble y esta medio feo, y mueve las fuentes que NO SE USAN, a fuera de assets, para intentar optimizar el apk
+-->

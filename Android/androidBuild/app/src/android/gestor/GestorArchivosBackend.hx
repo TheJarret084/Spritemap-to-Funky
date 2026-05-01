@@ -127,6 +127,28 @@ class GestorArchivosBackend {
         );
     }
 
+    public static function importDirectoryToSpritemaps(title:String, onComplete:String->Void, onError:String->Void):Bool {
+        return AndroidFilePicker.openDirectory(
+            title,
+            function(path:String) {
+                if (isBlank(path) || !directoryExists(path)) {
+                    var msg = "No pude encontrar la carpeta importada: " + path;
+                    #if android
+                    android.AppLogger.err(msg);
+                    #end
+                    if (onError != null) onError(msg);
+                    return;
+                }
+
+                #if android
+                android.AppLogger.log("Carpeta importada a spritemaps: " + path);
+                #end
+                if (onComplete != null) onComplete(path);
+            },
+            onError
+        );
+    }
+
     public static function saveFileToUser(
         title:String,
         suggestedName:String,
@@ -267,6 +289,22 @@ class GestorArchivosBackend {
     public static function compareStrings(a:String, b:String):Int {
         if (a == b) return 0;
         return a < b ? -1 : 1;
+    }
+
+    public static function normalizePathKey(path:String):String {
+        if (isBlank(path)) return "";
+
+        var clean = StringTools.trim(path);
+        clean = StringTools.replace(clean, "\\", "/");
+        while (clean.indexOf("//") != -1) clean = StringTools.replace(clean, "//", "/");
+        while (StringTools.endsWith(clean, "/") && clean.length > 1)
+            clean = clean.substr(0, clean.length - 1);
+
+        if (StringTools.startsWith(clean, "/sdcard/")) {
+            clean = "/storage/emulated/0/" + clean.substr("/sdcard/".length);
+        }
+
+        return clean.toLowerCase();
     }
 
     public static function isBlank(value:String):Bool {

@@ -244,8 +244,8 @@ Ese script prepara:
 
 Usa por defecto:
 
-- Android platform `33`
-- Build Tools `33.0.2`
+- Android platform `35`
+- Build Tools `36.1.0`
 - NDK `25.2.9519653`
 
 ### Setup Android en Termux
