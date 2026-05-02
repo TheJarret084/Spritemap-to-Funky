@@ -38,5 +38,29 @@
 </project>
 
 <!--
-oye, puedes añadir un tema oscuro, y quita el exprotar frames png  y en el boton de "PROYECTOS"  solo salga las carpetas existentes de spritemaps/... porque llega a salir doble y esta medio feo, y mueve las fuentes que NO SE USAN, a fuera de assets, para intentar optimizar el apk
+
+oye porque la app se congela al usar este boton?
+
+setStatus("Elige dónde guardar el ZIP", 0x2563EB);
+            var opened = GestorArchivosBackend.saveFileToUser(
+                AppConfig.SAVE_DIALOG_TITLE,
+                result.archiveName,
+                result.archivePath,
+                function(savedFile) {
+                    AppLogger.log("ZIP guardado: " + savedFile.targetPath);
+                    Backend.cleanupAfterSave();
+                    resetAfterSuccessfulSave();
+                    setStatus("ZIP guardado", 0x15803D);
+                    exportButton.enabled = mediaExportButton.enabled = true;
+                },
+                function(message:String) {
+                    AppLogger.err("No pude guardar el ZIP: " + message);
+                    setStatus("ZIP listo para reintentar", 0x7C2D12);
+                    exportButton.enabled = mediaExportButton.enabled = true;
+                }
+            );
+
+y mas exacto aqui [MainView.hx](Android/androidBuild/app/src/android/MainView.hx)
+
+
 -->
