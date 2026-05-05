@@ -1,4 +1,3 @@
-/* ── base.css – Variables, reset y estilos comunes ── */
 :root {
   --bg: #0b0f16;
   --bg-2: #0f1822;
@@ -12,7 +11,9 @@
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html, body {
   margin: 0;
@@ -29,13 +30,8 @@ body {
   min-height: 100vh;
 }
 
-a { color: inherit; }
-
-h1, h2, h3, p { margin: 0; }
-
-p {
-  color: var(--muted);
-  line-height: 1.6;
+a {
+  color: inherit;
 }
 
 .wrap {
@@ -44,14 +40,21 @@ p {
   padding: 0 16px;
 }
 
-/* Hero */
 .hero {
   display: grid;
   gap: 14px;
   margin-bottom: 18px;
 }
 
-/* Nav */
+h1, h2, h3, p {
+  margin: 0;
+}
+
+p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .nav {
   display: flex;
   gap: 10px;
@@ -59,7 +62,6 @@ p {
   margin-top: 6px;
 }
 
-/* Card */
 .card {
   background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
   border: 1px solid var(--border);
@@ -69,7 +71,6 @@ p {
   box-shadow: var(--shadow);
 }
 
-/* Row */
 .row {
   display: flex;
   gap: 12px;
@@ -77,7 +78,6 @@ p {
   margin-top: 12px;
 }
 
-/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -118,11 +118,31 @@ p {
   color: #1a1200;
 }
 
-/* Utilities */
-.muted { color: var(--muted); font-size: 0.95em; }
-.small { font-size: 0.9em; }
+.muted {
+  color: var(--muted);
+  font-size: 0.95em;
+}
 
-/* Footer */
+.columns {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.col {
+  flex: 1 1 280px;
+  background: #121924;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.step {
+  margin-top: 8px;
+  color: #c6cbd6;
+  line-height: 1.5;
+}
+
 .footer {
   margin-top: 32px;
   padding: 16px 0 4px;
@@ -152,4 +172,29 @@ p {
   text-decoration: none;
 }
 
-.discord-link:hover { background: #2b2f33; }
+.discord-link:hover {
+  background: #2b2f33;
+}
+
+.gb-embed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gb-embed img {
+  max-width: 100%;
+  border-radius: 10px;
+  display: block;
+}
+
+video {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #2a2f3a;
+  display: block;
+}
+
+.small {
+  font-size: 0.9em;
+}
