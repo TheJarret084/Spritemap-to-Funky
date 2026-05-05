@@ -1,11 +1,10 @@
 const abelito = 'https://funkyatlas.abelitogamer.com';
+console.log("hola");
 
-const isMobile = /Android|iPhone|iPad|iPod/.test(navigator.userAgent);
+const isAndroid = /Android/.test(navigator.userAgent);
 
-// Mostrar en la página si es mobile o no
-document.body.innerHTML += `<div style="position:fixed;top:0;left:0;background:red;color:white;padding:10px;z-index:9999;font-size:12px;">Mobile: ${isMobile}</div>`;
-
-if (!isMobile) {
+// Si NO es Android, activa anti-devtools
+if (!isAndroid) {
   setInterval(() => {
     const start = performance.now();
     debugger;
@@ -13,4 +12,25 @@ if (!isMobile) {
       window.location.replace(abelito);
     }
   }, 500);
+
+  const detector = /./;
+  detector.toString = () => {
+    window.location.replace(abelito);
+    return '';
+  };
+  setInterval(() => {
+    console.log(detector);
+    console.clear();
+  }, 1000);
+
+  function checkDevTools() {
+    if (
+      window.outerWidth - window.innerWidth > 160 ||
+      window.outerHeight - window.innerHeight > 160
+    ) {
+      window.location.replace(abelito);
+    }
+  }
+  window.addEventListener('resize', checkDevTools);
+  checkDevTools();
 }
