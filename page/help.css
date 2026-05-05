@@ -1,0 +1,59 @@
+/* ── help.css – Estilos exclusivos de la página de ayuda ── */
+
+/* Video tutorial */
+video {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #2a2f3a;
+  display: block;
+  margin-top: 12px;
+}
+
+/* Columnas de pasos */
+.columns {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.col {
+  flex: 1 1 280px;
+  background: #121924;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.step {
+  margin-top: 8px;
+  color: #c6cbd6;
+  line-height: 1.5;
+}
+
+/* Summary / details */
+details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+  padding: 4px 0;
+  list-style: none;
+}
+
+details summary::before {
+  content: "▶ ";
+  font-size: 0.75em;
+  color: var(--accent);
+}
+
+details[open] summary::before {
+  content: "▼ ";
+}
+
+code {
+  background: #1e2736;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.88em;
+  color: var(--accent);
+}

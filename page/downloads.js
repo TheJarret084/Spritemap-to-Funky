@@ -1,10 +1,10 @@
+/* ── downloads.js – */
+
 function getOS() {
   const ua = navigator.userAgent.toLowerCase();
-
   if (ua.includes("android")) return "Android";
-  if (ua.includes("win")) return "Windows";
-  if (ua.includes("linux")) return "Linux";
-
+  if (ua.includes("win"))     return "Windows";
+  if (ua.includes("linux"))   return "Linux";
   return "Unknown";
 }
 
@@ -64,9 +64,9 @@ function createDownloadCard(d, isRecommended) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const downloadsContainer = document.getElementById("downloads");
+  const downloadsContainer   = document.getElementById("downloads");
   const recommendedContainer = document.getElementById("recommended");
-  const osLabel = document.getElementById("detected-os");
+  const osLabel              = document.getElementById("detected-os");
 
   if (osLabel) {
     osLabel.textContent = userOS === "Unknown" ? "no reconocido" : userOS;
@@ -82,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (recommended) {
       const recCard = document.createElement("div");
       recCard.className = "card";
-
       recCard.innerHTML = `
         <h2>🚀 Descarga recomendada</h2>
         <p class="muted">Detectamos que usas <strong>${userOS}</strong>.</p>
@@ -95,7 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
           </a>
         </div>
       `;
-
       recommendedContainer.appendChild(recCard);
     } else {
       const info = document.createElement("div");
@@ -109,7 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   downloadsContainer.innerHTML = "";
-
   downloads.forEach(d => {
     const isRecommended = d.os === userOS && !!d.download;
     downloadsContainer.appendChild(createDownloadCard(d, isRecommended));
