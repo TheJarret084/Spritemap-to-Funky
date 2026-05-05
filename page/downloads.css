@@ -1,0 +1,12 @@
+/* ── downloads.css – */
+
+/* Indicador de OS detectado */
+#detected-os {
+  color: var(--accent);
+}
+
+/* Tarjeta de descarga recomendada – borde dorado destacado */
+#recommended .card {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2), var(--shadow);
+}
