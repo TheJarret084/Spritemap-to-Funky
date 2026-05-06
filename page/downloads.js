@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const recCard = document.createElement("div");
       recCard.className = "card";
       recCard.innerHTML = `
-        <h2>🚀 Descarga recomendada</h2>
+        <h2>Descarga recomendada</h2>
         <p class="muted">Detectamos que usas <strong>${userOS}</strong>.</p>
         <div class="row" style="margin-top:12px;">
           <a class="btn recommended" href="${recommended.download}">
@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const info = document.createElement("div");
       info.className = "card";
       info.innerHTML = `
-        <h2>🚀 Descarga recomendada</h2>
+        <h2>No hay descarga recomendada</h2>
         <p class="muted">No pude detectar un sistema compatible. Mira las opciones de abajo.</p>
       `;
       recommendedContainer.appendChild(info);

@@ -96,7 +96,7 @@ class GestorArchivosBackend {
         resetWorkspace();
     }
 
-    public static function openFile(title:String, filter:String, onComplete:ArchivoSeleccionado->Void, onError:String->Void):Bool {
+    public static function openFile(title:String, filter:String, onComplete:ArchivoSeleccionado->Void, onError:String->Void, ?onCancel:Void->Void):Bool {
         return AndroidFilePicker.openFile(
             title,
             filter,
@@ -123,11 +123,12 @@ class GestorArchivosBackend {
                 #end
                 if (onComplete != null) onComplete(info);
             },
-            onError
+            onError,
+            onCancel
         );
     }
 
-    public static function importDirectoryToSpritemaps(title:String, onComplete:String->Void, onError:String->Void):Bool {
+    public static function importDirectoryToSpritemaps(title:String, onComplete:String->Void, onError:String->Void, ?onCancel:Void->Void):Bool {
         return AndroidFilePicker.openDirectory(
             title,
             function(path:String) {
@@ -145,7 +146,8 @@ class GestorArchivosBackend {
                 #end
                 if (onComplete != null) onComplete(path);
             },
-            onError
+            onError,
+            onCancel
         );
     }
 
@@ -154,7 +156,8 @@ class GestorArchivosBackend {
         suggestedName:String,
         sourcePath:String,
         onComplete:ArchivoGuardado->Void,
-        onError:String->Void
+        onError:String->Void,
+        ?onCancel:Void->Void
     ):Bool {
         if (!fileExists(sourcePath)) {
             if (onError != null) onError("No encontré el archivo preparado para guardar.");
@@ -170,7 +173,8 @@ class GestorArchivosBackend {
                     onComplete(new ArchivoGuardado(sourcePath, savedPath, Path.withoutDirectory(sanitizeArchiveName(suggestedName))));
                 }
             },
-            onError
+            onError,
+            onCancel
         );
     }
 

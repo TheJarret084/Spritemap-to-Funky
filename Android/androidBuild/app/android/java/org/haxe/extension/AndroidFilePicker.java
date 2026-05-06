@@ -213,41 +213,44 @@ public class AndroidFilePicker extends Extension {
             return true;
         }
 
-        Activity activity = mainActivity;
-        Uri uri = data.getData();
+        final Activity activity = mainActivity;
+        final Uri uri = data.getData();
+        final String extension = pendingExtension;
 
-        try {
-            try {
-                activity.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (Exception ignored) {
+        runInBackground("AndroidFilePickerOpen", new Runnable() {
+            @Override public void run() {
+                try {
+                    try {
+                        activity.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    } catch (Exception ignored) {
+                    }
+
+                    String displayName = resolveDisplayName(activity, uri);
+                    if (displayName == null || displayName.trim().isEmpty()) {
+                        displayName = buildFallbackName(extension);
+                    }
+
+                    File targetDir = new File(getWorkspaceDir(activity), "picked-files");
+                    if (!targetDir.exists()) {
+                        targetDir.mkdirs();
+                    }
+
+                    File target = makeUniqueFile(targetDir, sanitizeName(displayName));
+                    InputStream input = activity.getContentResolver().openInputStream(uri);
+                    if (input == null) {
+                        dispatchError("No pude leer el archivo seleccionado.");
+                        return;
+                    }
+
+                    FileOutputStream output = new FileOutputStream(target, false);
+                    copyStream(input, output);
+
+                    dispatchPathSelected(target.getAbsolutePath());
+                } catch (Exception e) {
+                    dispatchError("Error procesando archivo: " + e.getMessage());
+                }
             }
-
-            String displayName = resolveDisplayName(activity, uri);
-            if (displayName == null || displayName.trim().isEmpty()) {
-                displayName = buildFallbackName(pendingExtension);
-            }
-
-            File targetDir = new File(getWorkspaceDir(activity), "picked-files");
-            if (!targetDir.exists()) {
-                targetDir.mkdirs();
-            }
-
-            File target = makeUniqueFile(targetDir, sanitizeName(displayName));
-            InputStream input = activity.getContentResolver().openInputStream(uri);
-            if (input == null) {
-                dispatchError("No pude leer el archivo seleccionado.");
-                return true;
-            }
-
-            FileOutputStream output = new FileOutputStream(target, false);
-            copyStream(input, output);
-
-            if (callback != null) {
-                callback.call1("onPathSelected", target.getAbsolutePath());
-            }
-        } catch (Exception e) {
-            dispatchError("Error procesando archivo: " + e.getMessage());
-        }
+        });
 
         return true;
     }
@@ -258,41 +261,42 @@ public class AndroidFilePicker extends Extension {
             return true;
         }
 
-        Activity activity = mainActivity;
-        Uri treeUri = data.getData();
+        final Activity activity = mainActivity;
+        final Uri treeUri = data.getData();
+        final int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
-        try {
-            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            try {
-                activity.getContentResolver().takePersistableUriPermission(treeUri, flags);
-            } catch (Exception ignored) {
+        runInBackground("AndroidFilePickerTree", new Runnable() {
+            @Override public void run() {
+                try {
+                    try {
+                        activity.getContentResolver().takePersistableUriPermission(treeUri, flags);
+                    } catch (Exception ignored) {
+                    }
+
+                    String treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri);
+                    Uri rootDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, treeDocumentId);
+                    String folderName = resolveDocumentDisplayName(activity, rootDocumentUri);
+                    if (folderName == null || folderName.trim().isEmpty()) {
+                        folderName = "imported-folder";
+                    }
+
+                    File spritemapsDir = new File(getExternalMediaRoot(), "spritemaps");
+                    if (!spritemapsDir.exists()) {
+                        spritemapsDir.mkdirs();
+                    }
+
+                    File targetDir = makeUniqueDirectory(spritemapsDir, sanitizeName(folderName));
+                    if (!targetDir.exists()) {
+                        targetDir.mkdirs();
+                    }
+
+                    copyDocumentTree(activity.getContentResolver(), treeUri, treeDocumentId, targetDir);
+                    dispatchPathSelected(targetDir.getAbsolutePath());
+                } catch (Exception e) {
+                    dispatchError("Error importando carpeta: " + e.getMessage());
+                }
             }
-
-            String treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri);
-            Uri rootDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, treeDocumentId);
-            String folderName = resolveDocumentDisplayName(activity, rootDocumentUri);
-            if (folderName == null || folderName.trim().isEmpty()) {
-                folderName = "imported-folder";
-            }
-
-            File spritemapsDir = new File(getExternalMediaRoot(), "spritemaps");
-            if (!spritemapsDir.exists()) {
-                spritemapsDir.mkdirs();
-            }
-
-            File targetDir = makeUniqueDirectory(spritemapsDir, sanitizeName(folderName));
-            if (!targetDir.exists()) {
-                targetDir.mkdirs();
-            }
-
-            copyDocumentTree(activity.getContentResolver(), treeUri, treeDocumentId, targetDir);
-
-            if (callback != null) {
-                callback.call1("onPathSelected", targetDir.getAbsolutePath());
-            }
-        } catch (Exception e) {
-            dispatchError("Error importando carpeta: " + e.getMessage());
-        }
+        });
 
         return true;
     }
@@ -303,37 +307,44 @@ public class AndroidFilePicker extends Extension {
             return true;
         }
 
-        Activity activity = mainActivity;
-        Uri uri = data.getData();
+        final Activity activity = mainActivity;
+        final Uri uri = data.getData();
 
         if (pendingSaveSource == null || pendingSaveSource.isEmpty()) {
             dispatchError("No encontré el archivo temporal para guardar.");
             return true;
         }
 
-        try {
-            File source = new File(pendingSaveSource);
-            if (!source.exists() || source.isDirectory()) {
-                dispatchError("El ZIP temporal ya no existe.");
-                return true;
-            }
+        final String sourcePath = pendingSaveSource;
+        pendingSaveSource = null;
 
-            InputStream input = new FileInputStream(source);
-            OutputStream output = activity.getContentResolver().openOutputStream(uri, "w");
-            if (output == null) {
-                dispatchError("No pude escribir el archivo destino.");
-                return true;
-            }
+        runInBackground("AndroidFilePickerSave", new Runnable() {
+            @Override public void run() {
+                try {
+                    File source = new File(sourcePath);
+                    if (!source.exists() || source.isDirectory()) {
+                        dispatchError("El ZIP temporal ya no existe.");
+                        return;
+                    }
 
-            copyStream(input, output);
-            pendingSaveSource = null;
+                    InputStream input = new FileInputStream(source);
+                    OutputStream output = activity.getContentResolver().openOutputStream(uri, "w");
+                    if (output == null) {
+                        try {
+                            input.close();
+                        } catch (Exception ignored) {
+                        }
+                        dispatchError("No pude escribir el archivo destino.");
+                        return;
+                    }
 
-            if (callback != null) {
-                callback.call1("onFileSaved", uri.toString());
+                    copyStream(input, output);
+                    dispatchFileSaved(uri.toString());
+                } catch (Exception e) {
+                    dispatchError("No pude guardar el ZIP: " + e.getMessage());
+                }
             }
-        } catch (Exception e) {
-            dispatchError("No pude guardar el ZIP: " + e.getMessage());
-        }
+        });
 
         return true;
     }
@@ -359,16 +370,70 @@ public class AndroidFilePicker extends Extension {
         }
     }
 
-    private static void dispatchCancel() {
-        pendingSaveSource = null;
-        if (callback != null) {
-            callback.call0("onPickerCancelled");
-        }
+    private static void runInBackground(String name, Runnable runnable) {
+        Thread thread = new Thread(runnable, name);
+        thread.start();
     }
 
-    private static void dispatchError(String message) {
-        if (callback != null) {
-            callback.call1("onPickerError", message == null ? "Error desconocido." : message);
+    private static void dispatchPathSelected(final String path) {
+        final HaxeObject callbackObject = callback;
+        if (callbackObject == null) {
+            return;
+        }
+
+        runCallback(new Runnable() {
+            @Override public void run() {
+                callbackObject.call1("onPathSelected", path);
+            }
+        });
+    }
+
+    private static void dispatchFileSaved(final String path) {
+        final HaxeObject callbackObject = callback;
+        if (callbackObject == null) {
+            return;
+        }
+
+        runCallback(new Runnable() {
+            @Override public void run() {
+                callbackObject.call1("onFileSaved", path);
+            }
+        });
+    }
+
+    private static void dispatchCancel() {
+        pendingSaveSource = null;
+        final HaxeObject callbackObject = callback;
+        if (callbackObject == null) {
+            return;
+        }
+
+        runCallback(new Runnable() {
+            @Override public void run() {
+                callbackObject.call0("onPickerCancelled");
+            }
+        });
+    }
+
+    private static void dispatchError(final String message) {
+        final HaxeObject callbackObject = callback;
+        if (callbackObject == null) {
+            return;
+        }
+
+        runCallback(new Runnable() {
+            @Override public void run() {
+                callbackObject.call1("onPickerError", message == null ? "Error desconocido." : message);
+            }
+        });
+    }
+
+    private static void runCallback(Runnable runnable) {
+        Activity activity = mainActivity;
+        if (activity != null) {
+            activity.runOnUiThread(runnable);
+        } else {
+            runnable.run();
         }
     }
 

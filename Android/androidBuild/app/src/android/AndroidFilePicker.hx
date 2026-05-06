@@ -15,9 +15,10 @@ class AndroidFilePicker {
     static var getExternalMediaRootBridge:Void->String;
     static var clearWorkspaceBridge:Void->Void;
     static var callbackBridge = new AndroidFilePickerCallback();
+    static var pendingOperation:Bool = false;
     #end
 
-    public static function openFile(title:String, filter:String, onComplete:String->Void, onError:String->Void):Bool {
+    public static function openFile(title:String, filter:String, onComplete:String->Void, onError:String->Void, ?onCancel:Void->Void):Bool {
         #if android
         ensureInitialized();
         if (browseFile == null) {
@@ -25,7 +26,8 @@ class AndroidFilePicker {
             return false;
         }
 
-        callbackBridge.setHandlers(onComplete, onError);
+        if (!beginOperation(onError)) return false;
+        callbackBridge.setHandlers(onComplete, onError, onCancel);
 
         try {
             browseFile(title, normalizeFilter(filter));
@@ -41,7 +43,7 @@ class AndroidFilePicker {
         #end
     }
 
-    public static function openDirectory(title:String, onComplete:String->Void, onError:String->Void):Bool {
+    public static function openDirectory(title:String, onComplete:String->Void, onError:String->Void, ?onCancel:Void->Void):Bool {
         #if android
         ensureInitialized();
         if (browseDirectory == null) {
@@ -49,7 +51,8 @@ class AndroidFilePicker {
             return false;
         }
 
-        callbackBridge.setHandlers(onComplete, onError);
+        if (!beginOperation(onError)) return false;
+        callbackBridge.setHandlers(onComplete, onError, onCancel);
 
         try {
             browseDirectory(title);
@@ -65,7 +68,7 @@ class AndroidFilePicker {
         #end
     }
 
-    public static function saveFile(title:String, suggestedName:String, sourcePath:String, onComplete:String->Void, onError:String->Void):Bool {
+    public static function saveFile(title:String, suggestedName:String, sourcePath:String, onComplete:String->Void, onError:String->Void, ?onCancel:Void->Void):Bool {
         #if android
         ensureInitialized();
         if (saveFileToUser == null) {
@@ -73,7 +76,8 @@ class AndroidFilePicker {
             return false;
         }
 
-        callbackBridge.setHandlers(onComplete, onError);
+        if (!beginOperation(onError)) return false;
+        callbackBridge.setHandlers(onComplete, onError, onCancel);
 
         try {
             saveFileToUser(title, suggestedName, sourcePath);
@@ -196,6 +200,20 @@ class AndroidFilePicker {
         if (StringTools.startsWith(clean, "*.")) clean = clean.substr(2);
         return clean;
     }
+
+    static function beginOperation(onError:String->Void):Bool {
+        if (pendingOperation) {
+            if (onError != null) onError("Ya hay un selector abierto o una copia en curso.");
+            return false;
+        }
+
+        pendingOperation = true;
+        return true;
+    }
+
+    public static function finishOperation():Void {
+        pendingOperation = false;
+    }
     #end
 }
 
@@ -203,17 +221,21 @@ class AndroidFilePicker {
 class AndroidFilePickerCallback implements lime.system.JNI.JNISafety {
     var onComplete:String->Void;
     var onError:String->Void;
+    var onCancel:Void->Void;
 
     public function new() {}
 
-    public function setHandlers(onComplete:String->Void, onError:String->Void):Void {
+    public function setHandlers(onComplete:String->Void, onError:String->Void, ?onCancel:Void->Void):Void {
         this.onComplete = onComplete;
         this.onError = onError;
+        this.onCancel = onCancel;
     }
 
     public function clearHandlers():Void {
         onComplete = null;
         onError = null;
+        onCancel = null;
+        AndroidFilePicker.finishOperation();
     }
 
     @:runOnMainThread
@@ -232,7 +254,9 @@ class AndroidFilePickerCallback implements lime.system.JNI.JNISafety {
 
     @:runOnMainThread
     public function onPickerCancelled():Void {
+        var cancel = onCancel;
         clearHandlers();
+        if (cancel != null) cancel();
     }
 
     @:runOnMainThread

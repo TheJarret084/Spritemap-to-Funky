@@ -21,7 +21,17 @@ import openfl.events.MouseEvent;
 import openfl.text.TextField;
 import openfl.text.TextFieldAutoSize;
 
+enum MainToolTab {
+    ToolProject;
+    ToolAnimations;
+    ToolConsole;
+}
+
 class MainView extends Sprite {
+    static inline var MOBILE_BREAKPOINT:Float = 760.0;
+    static inline var MIN_TOUCH_BUTTON_H:Float = 54.0;
+    static inline var COMPACT_TOUCH_BUTTON_H:Float = 50.0;
+    static inline var MOBILE_BUTTON_GAP:Float = 10.0;
 
     // ── Capas base ────────────────────────────────────────────────────────────
     var backgroundLayer:Shape;
@@ -36,6 +46,13 @@ class MainView extends Sprite {
     // ── Navbar dropdown de proyectos (debajo del header) ─────────────────────
     var navbar:ProjectNavbar;
     var navbarY:Float = 0; // posición Y calculada en layout
+
+    // ── Pestañas estilo multi-tool ───────────────────────────────────────────
+    var tabsBar:Sprite;
+    var projectTabButton:ToolTabButton;
+    var animationsTabButton:ToolTabButton;
+    var consoleTabButton:ToolTabButton;
+    var activeTab:MainToolTab = ToolProject;
 
     // ── Cards ─────────────────────────────────────────────────────────────────
     var inputsCard:CardSection;
@@ -108,6 +125,7 @@ class MainView extends Sprite {
         buildAnimations();
         buildLog();
         buildNavbar();
+        buildTabs();
         buildAboutOverlay();
 
         stage.addEventListener(Event.RESIZE, onResize);
@@ -162,7 +180,7 @@ class MainView extends Sprite {
         statusField.autoSize     = TextFieldAutoSize.LEFT;
         addChild(statusField);
 
-        inputsCard     = new CardSection("Archivos");
+        inputsCard     = new CardSection("Proyecto");
         animationsCard = new CardSection("Animaciones");
         logCard        = new CardSection("Consola");
         addChild(inputsCard);
@@ -178,6 +196,25 @@ class MainView extends Sprite {
             loadProjectFromNavbar(index, folderPath);
         };
         addChild(navbar);
+    }
+
+    function buildTabs():Void {
+        tabsBar = new Sprite();
+
+        projectTabButton = new ToolTabButton("Proyecto");
+        animationsTabButton = new ToolTabButton("Animaciones");
+        consoleTabButton = new ToolTabButton("Consola");
+
+        tabsBar.addChild(projectTabButton);
+        tabsBar.addChild(animationsTabButton);
+        tabsBar.addChild(consoleTabButton);
+
+        projectTabButton.addEventListener(MouseEvent.CLICK, function(_) { showTab(ToolProject); });
+        animationsTabButton.addEventListener(MouseEvent.CLICK, function(_) { showTab(ToolAnimations); });
+        consoleTabButton.addEventListener(MouseEvent.CLICK, function(_) { showTab(ToolConsole); });
+
+        addChild(tabsBar);
+        applyActiveTab();
     }
 
     function buildInputs():Void {
@@ -337,6 +374,11 @@ class MainView extends Sprite {
                 mediaImportButton.enabled = true;
                 AppLogger.err("Importar carpeta falló: " + message);
                 setStatus("No pude importar carpeta", 0x7C2D12);
+            },
+            function() {
+                mediaImportButton.enabled = true;
+                AppLogger.warn("Importación cancelada por el usuario.");
+                setStatus("Importación cancelada", 0x475569);
             }
         );
 
@@ -356,6 +398,7 @@ class MainView extends Sprite {
             updateSelectionSummary();
             AppLogger.log(result.log);
             setStatus("Animaciones listas", result.animations.length > 0 ? 0x0F766E : 0x475569);
+            if (result.animations.length > 0) showTab(ToolAnimations);
         } catch (error:Dynamic) {
             AppLogger.err("Refresh falló: " + Std.string(error));
             setStatus("Error leyendo rutas", 0x7C2D12);
@@ -392,6 +435,11 @@ class MainView extends Sprite {
                 },
                 function(message:String) {
                     AppLogger.err("No pude guardar el ZIP: " + message);
+                    setStatus("ZIP listo para reintentar", 0x7C2D12);
+                    exportButton.enabled = mediaExportButton.enabled = true;
+                },
+                function() {
+                    AppLogger.warn("Guardado cancelado por el usuario.");
                     setStatus("ZIP listo para reintentar", 0x7C2D12);
                     exportButton.enabled = mediaExportButton.enabled = true;
                 }
@@ -445,6 +493,7 @@ class MainView extends Sprite {
         filterInput.text    = "";
         animationsView.setItems([]);
         updateSelectionSummary();
+        showTab(ToolProject);
         AppLogger.log("Workspace temporal limpiado.");
     }
 
@@ -475,6 +524,27 @@ class MainView extends Sprite {
         selectionField.text = selected + " seleccionadas para el ZIP";
     }
 
+    function showTab(tab:MainToolTab):Void {
+        if (activeTab == tab) return;
+        activeTab = tab;
+        applyActiveTab();
+        if (stage != null) layout();
+    }
+
+    function applyActiveTab():Void {
+        var showProject = activeTab == ToolProject;
+        var showAnimations = activeTab == ToolAnimations;
+        var showConsole = activeTab == ToolConsole;
+
+        if (inputsCard != null) inputsCard.visible = showProject;
+        if (animationsCard != null) animationsCard.visible = showAnimations;
+        if (logCard != null) logCard.visible = showConsole;
+
+        if (projectTabButton != null) projectTabButton.active = showProject;
+        if (animationsTabButton != null) animationsTabButton.active = showAnimations;
+        if (consoleTabButton != null) consoleTabButton.active = showConsole;
+    }
+
     function setStatus(text:String, color:Int):Void {
         statusColor = color;
         statusField.text = text;
@@ -499,7 +569,7 @@ class MainView extends Sprite {
     function layout():Void {
         var width  = stage.stageWidth;
         var height = stage.stageHeight;
-        var margin:Float = 18.0;
+        var margin:Float = width < 420 ? 12.0 : 18.0;
 
         drawBackground(width, height);
 
@@ -525,75 +595,57 @@ class MainView extends Sprite {
         navbar.y = navbarY;
         navbar.setStageWidth(width);
 
-        // ── Cards — empiezan debajo del navbar ────────────────────────────────
-        var contentTop = navbarY + 52;
-        var gap  = 14.0;
+        // ── Tabs + herramienta activa ─────────────────────────────────────────
+        var tabsY = navbarY + 52;
+        layoutTabs(margin, width, tabsY);
+
+        var contentTop = tabsY + 56;
         var fullW = width - margin * 2;
-        var compactLayout = width < 960;
+        var contentH = Math.max(420.0, height - contentTop - margin);
 
-        if (width >= 680) {
-            var topCardW = (fullW - gap) * 0.5;
-            var availableH = Math.max(540.0, height - contentTop - margin);
-            var inputsH = clamp(availableH * 0.46, 540.0, 620.0);
-            var animsH = clamp(availableH * 0.42, 390.0, 520.0);
+        inputsCard.x = margin;
+        inputsCard.y = contentTop;
+        inputsCard.setSize(fullW, contentH);
 
-            inputsCard.x = margin;
-            inputsCard.y = contentTop;
-            inputsCard.setSize(topCardW, inputsH);
+        animationsCard.x = margin;
+        animationsCard.y = contentTop;
+        animationsCard.setSize(fullW, contentH);
 
-            animationsCard.x = margin + topCardW + gap;
-            animationsCard.y = contentTop;
-            animationsCard.setSize(topCardW, animsH);
+        logCard.x = margin;
+        logCard.y = contentTop;
+        logCard.setSize(fullW, contentH);
 
-            logCard.x = margin;
-            logCard.y = contentTop + Math.max(inputsH, animsH) + gap;
-            logCard.setSize(fullW, Math.max(220.0, height - logCard.y - margin));
-        } else {
-            var availableH = Math.max(420.0, height - contentTop - margin);
-            var splitBottom = width >= 620 && availableH >= 760;
-
-            if (splitBottom) {
-                var inputsH = clamp(availableH * 0.48, 540.0, 600.0);
-                var bottomH = Math.max(220.0, availableH - inputsH - gap);
-                var bottomW = (fullW - gap) * 0.5;
-
-                inputsCard.x = margin;
-                inputsCard.y = contentTop;
-                inputsCard.setSize(fullW, inputsH);
-
-                animationsCard.x = margin;
-                animationsCard.y = contentTop + inputsH + gap;
-                animationsCard.setSize(bottomW, bottomH);
-
-                logCard.x = margin + bottomW + gap;
-                logCard.y = animationsCard.y;
-                logCard.setSize(bottomW, bottomH);
-            } else {
-                var inputsH = clamp(availableH * 0.46, 430.0, 560.0);
-                var remainingH = Math.max(220.0, availableH - inputsH - gap * 2);
-                var animsH = Math.max(160.0, remainingH * 0.52);
-                var logH = Math.max(140.0, availableH - inputsH - animsH - gap * 2);
-
-                inputsCard.x = margin;
-                inputsCard.y = contentTop;
-                inputsCard.setSize(fullW, inputsH);
-
-                animationsCard.x = margin;
-                animationsCard.y = contentTop + inputsH + gap;
-                animationsCard.setSize(fullW, animsH);
-
-                logCard.x = margin;
-                logCard.y = animationsCard.y + animsH + gap;
-                logCard.setSize(fullW, Math.max(120.0, height - logCard.y - margin));
-            }
-        }
-
-        setInputsCompact(compactLayout);
+        setInputsCompact(isMobileLayout() || contentH < 620);
+        applyActiveTab();
         layoutInputsCard();
         layoutAnimationsCard();
         layoutLogCard();
         projectInfoOverlay.layoutOverlay(width, height, margin);
         setStatus(statusField.text == null || statusField.text == "" ? "Listo" : statusField.text, statusColor);
+    }
+
+    function layoutTabs(margin:Float, width:Float, y:Float):Void {
+        if (tabsBar == null) return;
+
+        var gap = width < 420 ? 6.0 : 8.0;
+        var fullW = width - margin * 2;
+        var tabW = (fullW - gap * 2) / 3;
+        var tabH = isMobileLayout() ? 46.0 : 42.0;
+
+        tabsBar.x = margin;
+        tabsBar.y = y;
+
+        projectTabButton.x = 0;
+        projectTabButton.y = 0;
+        projectTabButton.setSize(tabW, tabH);
+
+        animationsTabButton.x = tabW + gap;
+        animationsTabButton.y = 0;
+        animationsTabButton.setSize(tabW, tabH);
+
+        consoleTabButton.x = (tabW + gap) * 2;
+        consoleTabButton.y = 0;
+        consoleTabButton.setSize(tabW, tabH);
     }
 
     function layoutInfoButton(margin:Float, width:Float):Void {
@@ -627,7 +679,7 @@ class MainView extends Sprite {
     function layoutInputsCard():Void {
         var cardWidth = inputsCard.innerWidth;
         var y = 0.0;
-        var compact = stage.stageWidth < 960 || inputsCard.innerHeight < 620;
+        var compact = isMobileLayout() || inputsCard.innerHeight < 620;
         var rowGap = compact ? 61.0 : 88.0;
 
         for (input in [animationJsonInput, atlasJsonInput, atlasPngInput, animsXmlInput, animsJsonInput]) {
@@ -638,9 +690,20 @@ class MainView extends Sprite {
             y += rowGap;
         }
 
-        var buttonGap = 12.0;
-        var buttonW   = (cardWidth - buttonGap) * 0.5;
-        var buttonH   = compact ? 46.0 : 52.0;
+        var buttonGap = MOBILE_BUTTON_GAP;
+        var buttonH   = compact ? COMPACT_TOUCH_BUTTON_H : MIN_TOUCH_BUTTON_H;
+
+        if (isMobileLayout()) {
+            for (button in [mediaImportButton, refreshButton, mediaExportButton, exportButton]) {
+                button.x = 0;
+                button.y = y;
+                button.setSize(cardWidth, buttonH);
+                y += buttonH + buttonGap;
+            }
+            return;
+        }
+
+        var buttonW = (cardWidth - buttonGap) * 0.5;
 
         mediaImportButton.x = 0;
         mediaImportButton.y = y;
@@ -649,7 +712,7 @@ class MainView extends Sprite {
         refreshButton.x = buttonW + buttonGap;
         refreshButton.y = y;
         refreshButton.setSize(buttonW, buttonH);
-        y += buttonH + 12;
+        y += buttonH + buttonGap;
 
         mediaExportButton.x = 0;
         mediaExportButton.y = y;
@@ -661,7 +724,8 @@ class MainView extends Sprite {
     }
 
     function layoutAnimationsCard():Void {
-        var compact = animationsCard.innerWidth < 380 || animationsCard.innerHeight < 320;
+        var mobile = isMobileLayout();
+        var compact = mobile || animationsCard.innerWidth < 380 || animationsCard.innerHeight < 320;
         selectionField.x = 0;
         selectionField.y = 0;
         selectionField.width  = animationsCard.innerWidth;
@@ -673,14 +737,36 @@ class MainView extends Sprite {
         filterInput.setWidth(animationsCard.innerWidth);
 
         var actionsY  = compact ? 92.0 : 116.0;
-        var buttonW   = (animationsCard.innerWidth - 10) * 0.5;
-        var buttonH   = compact ? 40.0 : 46.0;
+        var buttonGap = MOBILE_BUTTON_GAP;
+        var buttonH   = compact ? COMPACT_TOUCH_BUTTON_H : MIN_TOUCH_BUTTON_H;
+
+        if (mobile) {
+            allButton.x = 0;
+            allButton.y = actionsY;
+            allButton.setSize(animationsCard.innerWidth, buttonH);
+
+            noneButton.x = 0;
+            noneButton.y = actionsY + buttonH + buttonGap;
+            noneButton.setSize(animationsCard.innerWidth, buttonH);
+
+            helperField.x = 0;
+            helperField.y = noneButton.y + buttonH + 12;
+            helperField.width  = animationsCard.innerWidth;
+            helperField.height = 34;
+
+            animationsView.x = 0;
+            animationsView.y = helperField.y + helperField.height + 10;
+            animationsView.setSize(animationsCard.innerWidth, Math.max(60, animationsCard.innerHeight - animationsView.y));
+            return;
+        }
+
+        var buttonW = (animationsCard.innerWidth - buttonGap) * 0.5;
 
         allButton.x  = 0;
         allButton.y  = actionsY;
         allButton.setSize(buttonW, buttonH);
 
-        noneButton.x = buttonW + 10;
+        noneButton.x = buttonW + buttonGap;
         noneButton.y = actionsY;
         noneButton.setSize(buttonW, buttonH);
 
@@ -721,7 +807,84 @@ class MainView extends Sprite {
         }
     }
 
+    function isMobileLayout():Bool {
+        return stage != null && stage.stageWidth < MOBILE_BREAKPOINT;
+    }
+
     function clamp(value:Float, min:Float, max:Float):Float {
         return Math.max(min, Math.min(max, value));
+    }
+}
+
+class ToolTabButton extends Sprite {
+    public var active(get, set):Bool;
+
+    var background:Shape;
+    var labelField:TextField;
+    var labelValue:String;
+    var activeValue:Bool = false;
+    var widthValue:Float = 120;
+    var heightValue:Float = 42;
+
+    public function new(label:String) {
+        super();
+        labelValue = label;
+
+        buttonMode = true;
+        useHandCursor = true;
+        mouseChildren = false;
+
+        background = new Shape();
+        addChild(background);
+
+        labelField = new TextField();
+        AppFonts.applyUi(labelField, 13, AppConfig.COLOR_TEXT, true);
+        labelField.selectable = false;
+        labelField.mouseEnabled = false;
+        labelField.autoSize = TextFieldAutoSize.LEFT;
+        labelField.text = labelValue;
+        addChild(labelField);
+
+        addEventListener(MouseEvent.MOUSE_DOWN, function(_) {
+            alpha = 0.9;
+        });
+        addEventListener(MouseEvent.MOUSE_UP, function(_) {
+            alpha = 1.0;
+        });
+        addEventListener(MouseEvent.ROLL_OUT, function(_) {
+            alpha = 1.0;
+        });
+
+        redraw();
+    }
+
+    public function setSize(width:Float, height:Float):Void {
+        widthValue = width;
+        heightValue = height;
+        redraw();
+    }
+
+    function set_active(value:Bool):Bool {
+        activeValue = value;
+        redraw();
+        return value;
+    }
+
+    function get_active():Bool {
+        return activeValue;
+    }
+
+    function redraw():Void {
+        if (background == null) return;
+
+        background.graphics.clear();
+        background.graphics.beginFill(activeValue ? AppConfig.COLOR_ACCENT_SOFT : AppConfig.COLOR_SURFACE, 1);
+        background.graphics.lineStyle(3, activeValue ? AppConfig.COLOR_ACCENT : AppConfig.COLOR_BORDER, 1);
+        background.graphics.drawRect(0, 0, widthValue, heightValue);
+        background.graphics.endFill();
+
+        labelField.text = labelValue;
+        labelField.x = (widthValue - labelField.textWidth) * 0.5 - 2;
+        labelField.y = (heightValue - labelField.textHeight) * 0.5 - 4;
     }
 }
