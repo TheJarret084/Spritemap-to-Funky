@@ -55,7 +55,7 @@ class DiscordRpcService {
 
     public function setPresence(details:String, state:String):Void {
         #if (cpp && !android)
-        if (!enabled || presence == null) return;
+        if (!enabled) return;
 
         presence.details = emptyToNull(details);
         presence.state = emptyToNull(state);

@@ -247,10 +247,14 @@ class UiInput extends Sprite {
                 #if android
                 openAndroidPicker();
                 #else
-                field.text = "[Esta app sólo corre en Android]";
+                field.text = "[Escribe la ruta del archivo aquí]";
                 #end
             case OPEN_DIRECTORY:
+                #if android
                 field.text = "[La salida se guarda como ZIP al exportar]";
+                #else
+                field.text = "[La salida desktop queda en com.thejarretlabs.spritemaptofunky/exports]";
+                #end
         }
     }
 

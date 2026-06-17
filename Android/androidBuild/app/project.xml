@@ -19,10 +19,16 @@
 
     <window width="720" height="1280"
             fps="60"
-            background="#0B1020"
+            background="#101418"
             orientation="portrait"
-            fullscreen="true"
+            fullscreen="false"
             if="android" />
+
+    <window width="980" height="720"
+            fps="60"
+            background="#101418"
+            resizable="true"
+            unless="android" />
 
     <source path="src" />
     <java path="android/java" if="android" />
@@ -37,14 +43,3 @@
 
 </project>
 
-<!--
-
-
-
-
-
-
-
-
-
--->

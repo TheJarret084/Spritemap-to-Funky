@@ -25,12 +25,17 @@ class AndroidApp {
     }
 
     public function onWindowCreate():Void {
-        #if android
         if (host.window != null) {
+            #if android
             host.window.width  = 720;
             host.window.height = 1280;
+            host.window.fullscreen = false;
+            #else
+            host.window.width  = 980;
+            host.window.height = 720;
+            host.window.fullscreen = false;
+            #end
         }
-        #end
     }
 
     public function onPreloadComplete():Void {
@@ -44,11 +49,6 @@ class AndroidApp {
         } catch (error:Dynamic) {
             AppLogger.err("No pude preparar carpetas media: " + Std.string(error));
         }
-        #end
-
-        #if !android
-        mount(new UnsupportedTargetView());
-        return;
         #end
 
         try {
@@ -139,26 +139,4 @@ class AndroidApp {
         }, AppConfig.CAROS_VIDEO_DURATION_MS);
     }
     #end
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Vista de plataforma no soportada
-// ─────────────────────────────────────────────────────────────────────────────
-
-class UnsupportedTargetView extends Sprite {
-    public function new() {
-        super();
-
-        var text = new TextField();
-        AppFonts.applyUi(text, 20, AppConfig.COLOR_TEXT, true);
-        text.selectable = false;
-        text.multiline  = true;
-        text.wordWrap   = true;
-        text.width      = 420;
-        text.height     = 120;
-        text.text       = "Este build está hecho sólo para Android.";
-        text.x = 40;
-        text.y = 80;
-        addChild(text);
-    }
 }

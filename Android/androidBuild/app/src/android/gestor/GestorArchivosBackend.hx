@@ -164,6 +164,19 @@ class GestorArchivosBackend {
             return false;
         }
 
+        #if !android
+        var safeName = sanitizeArchiveName(suggestedName);
+        var targetPath = Path.join([android.gestor.ImportadorMediaBackend.getMediaExportsDir(), safeName]);
+        ensureDirectory(Path.directory(targetPath));
+        clearFile(targetPath);
+        #if sys
+        File.saveBytes(targetPath, File.getBytes(sourcePath));
+        #end
+        if (onComplete != null) {
+            onComplete(new ArchivoGuardado(sourcePath, targetPath, Path.withoutDirectory(safeName)));
+        }
+        return true;
+        #else
         return AndroidFilePicker.saveFile(
             title,
             sanitizeArchiveName(suggestedName),
@@ -176,6 +189,7 @@ class GestorArchivosBackend {
             onError,
             onCancel
         );
+        #end
     }
 
     public static function stageExportZip(sourceZip:String, archiveName:String):String {
