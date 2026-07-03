@@ -2,6 +2,7 @@ package android.gestor;
 
 import android.AndroidFilePicker;
 import haxe.io.Path;
+import stf.PlatformFolders;
 
 #if sys
 import sys.FileSystem;
@@ -66,9 +67,9 @@ class GestorArchivosBackend {
         #end
 
         #if sys
-        return Path.join([Sys.getCwd(), "android-workspace"]);
+        return PlatformFolders.desktopWorkspaceRoot();
         #else
-        return "android-workspace";
+        return Path.join([PlatformFolders.DESKTOP_ROOT_NAME, "workspace"]);
         #end
     }
 

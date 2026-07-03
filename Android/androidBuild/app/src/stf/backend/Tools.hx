@@ -1,4 +1,4 @@
-package backend;
+package stf.backend;
 
 import haxe.Json;
 import haxe.io.Path;

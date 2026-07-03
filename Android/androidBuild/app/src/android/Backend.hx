@@ -3,7 +3,7 @@ package android;
 import android.gestor.GestorArchivosBackend;
 import android.gestor.ImportadorMediaBackend;
 import android.api.Api;
-import backend.Tools;
+import stf.backend.Tools;
 import haxe.Json;
 import haxe.io.Path;
 import android.AppModel.AnimationChoice;

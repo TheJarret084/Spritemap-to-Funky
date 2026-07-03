@@ -1,12 +1,12 @@
-package backend;
+package stf.backend;
 
-import backend.Model.AnimDef;
-import backend.Model.AtlasSpriteDef;
-import backend.Model.Bounds;
-import backend.Model.ExportJob;
-import backend.Model.RgbaImage;
-import backend.Model.SymbolDef;
-import backend.Model.Transform;
+import stf.backend.Model.AnimDef;
+import stf.backend.Model.AtlasSpriteDef;
+import stf.backend.Model.Bounds;
+import stf.backend.Model.ExportJob;
+import stf.backend.Model.RgbaImage;
+import stf.backend.Model.SymbolDef;
+import stf.backend.Model.Transform;
 import haxe.Json;
 import haxe.io.Path;
 import sys.FileSystem;

@@ -4,6 +4,7 @@ import haxe.Json;
 import lime.utils.Assets as LimeAssets;
 import openfl.Assets;
 import openfl.display.BitmapData;
+import stf.PlatformFolders;
 
 // ─── Datos del panel About ───────────────────────────────────────────────────
 
@@ -113,9 +114,9 @@ class AppConfig {
         #if android
         return lime.system.System.applicationStorageDirectory;
         #elseif sys
-        return normalizeDir(haxe.io.Path.join([Sys.getCwd(), "android-workspace"]));
+        return normalizeDir(PlatformFolders.desktopWorkspaceRoot());
         #else
-        return "android-workspace/";
+        return PlatformFolders.DESKTOP_ROOT_NAME + "/workspace/";
         #end
     }
 
@@ -126,9 +127,9 @@ class AppConfig {
         if (fromBridge != "") return fromBridge;
         return "/sdcard/Android/media/" + PACKAGE_NAME + "/";
         #elseif sys
-        return normalizeDir(haxe.io.Path.join([Sys.getCwd(), PACKAGE_NAME]));
+        return normalizeDir(PlatformFolders.desktopMediaRoot());
         #else
-        return PACKAGE_NAME + "/";
+        return PlatformFolders.DESKTOP_ROOT_NAME + "/media/";
         #end
     }
 

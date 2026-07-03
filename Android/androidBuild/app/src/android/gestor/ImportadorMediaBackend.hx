@@ -4,6 +4,7 @@ import android.AppConfig;
 import android.AppLogger;
 import android.AppModel.ProjectPaths;
 import haxe.io.Path;
+import stf.PlatformFolders;
 
 #if sys
 import sys.FileSystem;
@@ -44,9 +45,9 @@ class ImportadorMediaBackend {
         #if android
         return resolvePrimaryMediaBaseDir();
         #elseif sys
-        return Path.join([Sys.getCwd(), AppConfig.PACKAGE_NAME]);
+        return PlatformFolders.desktopMediaRoot();
         #else
-        return AppConfig.PACKAGE_NAME;
+        return Path.join([PlatformFolders.DESKTOP_ROOT_NAME, "media"]);
         #end
     }
 
@@ -62,7 +63,7 @@ class ImportadorMediaBackend {
         #if android
         return AppConfig.getProcessedMediaDir();
         #else
-        return Path.join([getMediaBaseDir(), "processed"]);
+        return PlatformFolders.desktopProcessedDir();
         #end
     }
 
@@ -70,7 +71,7 @@ class ImportadorMediaBackend {
         #if android
         return AppConfig.getExportsDir();
         #else
-        return Path.join([getMediaBaseDir(), "exports"]);
+        return PlatformFolders.desktopExportsDir();
         #end
     }
 
@@ -386,7 +387,7 @@ class ImportadorMediaBackend {
         #if android
         return AppConfig.getSpritemapsDirCandidates();
         #else
-        return [Path.join([getMediaBaseDir(), "spritemaps"])];
+        return [PlatformFolders.desktopSpritemapsDir()];
         #end
     }
 

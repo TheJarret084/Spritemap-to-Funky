@@ -1,4 +1,4 @@
-package backend;
+package stf.backend;
 
 import haxe.io.Bytes;
 import lime.graphics.Image;

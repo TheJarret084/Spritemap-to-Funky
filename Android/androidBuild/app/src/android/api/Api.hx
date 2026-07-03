@@ -1,7 +1,7 @@
 package android.api;
 
-import backend.Exporter;
-import backend.Tools;
+import stf.backend.Exporter;
+import stf.backend.Tools;
 import haxe.Json;
 
 class Api {

@@ -253,7 +253,7 @@ class UiInput extends Sprite {
                 #if android
                 field.text = "[La salida se guarda como ZIP al exportar]";
                 #else
-                field.text = "[La salida desktop queda en com.thejarretlabs.spritemaptofunky/exports]";
+                field.text = "[La salida desktop queda en STF-PC/media/exports]";
                 #end
         }
     }

@@ -1,4 +1,4 @@
-package backend;
+package stf.backend;
 
 import haxe.zip.Writer;
 import haxe.zip.Entry;
