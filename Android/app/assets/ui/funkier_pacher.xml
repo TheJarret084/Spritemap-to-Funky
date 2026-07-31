@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui title="Funkier-Pacher FP" subtitle="Creador de cintas a partir de un PNG + XML sparrow">
+  <text id="title" x="24" y="18" size="30" bold="true" color="0xEEF2E8" text="Funkier-Pacher FP" />
+  <text id="subtitle" x="24" y="52" size="14" color="0xAAB4A2" text="Creador de cintas a partir de un PNG + XML sparrow" />
+  <button id="backBtn" x="824" y="16" w="128" h="40" text="Volver" />
+
+  <panel id="project" title="Archivos del proyecto" x="24" y="88" w="460" h="272">
+    <input id="atlasPng" label="spritesheet.png" hint="Imagen del atlas" x="0" y="0" w="420" browse="file" filter="*.png,*.jpg,*.jpeg,*.webp" />
+    <input id="animsXml" label="atlas data" hint="XML/JSON/PLIST/ATLAS/FNT con frames" x="0" y="78" w="420" browse="file" filter="*.xml,*.json,*.plist,*.atlas,*.fnt,*.txt" />
+    <input id="outputDir" label="Salida" hint="Vacío usa media/processed/funkier-pacher" x="0" y="156" w="420" browse="none" />
+  </panel>
+
+  <panel id="actions" title="Acciones" x="500" y="88" w="456" h="272">
+    <label id="outputHint" x="0" y="0" size="13" color="0xAAB4A2" text="Genera tiras PNG por animación y un ZIP final." />
+    <button id="loadBtn" x="0" y="52" w="190" h="52" text="Cargar datos" />
+    <button id="exportBtn" x="206" y="52" w="190" h="52" text="Exportar ZIP" />
+    <button id="allBtn" x="0" y="118" w="120" h="40" text="Todo" />
+    <button id="noneBtn" x="128" y="118" w="120" h="40" text="Nada" />
+    <button id="clearBtn" x="256" y="118" w="140" h="40" text="Limpiar log" />
+  </panel>
+
+  <panel id="animations" title="Animaciones" x="24" y="378" w="932" h="186">
+    <input id="filter" label="Filtro" hint="Escribe para buscar en la lista" x="0" y="0" w="520" browse="none" />
+    <list id="animationList" x="0" y="72" w="896" h="96" />
+  </panel>
+
+  <panel id="console" title="Consola" x="24" y="582" w="932" h="136">
+    <console id="consoleView" x="0" y="0" w="896" h="76" />
+  </panel>
+
+  <text id="footer" x="24" y="736" size="12" color="0xAAB4A2" text="© 2026 Jarret Labs" />
+</ui>

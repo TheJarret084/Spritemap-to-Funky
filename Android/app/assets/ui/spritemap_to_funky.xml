@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui title="Spritemap to Funky" subtitle="UI XML para la pantalla principal de Spritemap to Funky.">
+  <text id="title" x="24" y="18" size="30" bold="true" color="0xEEF2E8" text="Spritemap to Funky" />
+  <text id="subtitle" x="24" y="52" size="14" color="0xAAB4A2" text="UI XML para la pantalla principal de Spritemap to Funky." />
+  <button id="backBtn" x="824" y="16" w="128" h="40" text="Volver" />
+
+  <panel id="project" title="Archivos del proyecto" x="24" y="88" w="460" h="272">
+    <input id="animationJson" label="animations.json" hint="Archivo principal de animaciones" x="0" y="0" w="420" browse="file" filter="*.json,*.txt" />
+    <input id="atlasJson" label="spritemap.json" hint="Atlas o mapa de sprites" x="0" y="78" w="420" browse="file" filter="*.json,*.xml,*.plist,*.atlas,*.fnt,*.txt" />
+    <input id="atlasPng" label="spritemap.png" hint="Imagen del atlas" x="0" y="156" w="420" browse="file" filter="*.png,*.jpg,*.jpeg,*.webp" />
+    <input id="animsXml" label="anims.xml" hint="Opcional: XML con animaciones" x="0" y="234" w="420" browse="file" filter="*.xml,*.txt" />
+  </panel>
+
+  <panel id="actions" title="Acciones" x="500" y="88" w="456" h="272">
+    <input id="animsJson" label="anims.json" hint="Opcional: lista de animaciones" x="0" y="0" w="408" browse="file" filter="*.json,*.txt" />
+    <input id="outputDir" label="Salida" hint="Dejar vacío usa la carpeta temporal" x="0" y="78" w="408" browse="none" />
+    <label id="outputHint" x="0" y="154" size="13" color="0xAAB4A2" text="Cargá un proyecto y exportá el ZIP final." />
+    <button id="loadBtn" x="0" y="186" w="190" h="52" text="Cargar datos" />
+    <button id="exportBtn" x="206" y="186" w="190" h="52" text="Exportar ZIP" />
+    <button id="allBtn" x="0" y="246" w="120" h="40" text="Todo" />
+    <button id="noneBtn" x="128" y="246" w="120" h="40" text="Nada" />
+    <button id="clearBtn" x="256" y="246" w="140" h="40" text="Limpiar log" />
+  </panel>
+
+  <panel id="animations" title="Animaciones" x="24" y="378" w="932" h="186">
+    <input id="filter" label="Filtro" hint="Escribe para buscar en la lista" x="0" y="0" w="520" browse="none" />
+    <list id="animationList" x="0" y="72" w="896" h="96" />
+  </panel>
+
+  <panel id="console" title="Consola" x="24" y="582" w="932" h="136">
+    <console id="consoleView" x="0" y="0" w="896" h="76" />
+  </panel>
+
+  <text id="footer" x="24" y="736" size="12" color="0xAAB4A2" text="© 2026 Jarret Labs" />
+</ui>

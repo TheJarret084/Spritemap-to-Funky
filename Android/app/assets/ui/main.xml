@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui title="ToolBoxel" subtitle="Elegí qué interfaz abrir desde el menú principal.">
+  <text id="title" x="24" y="18" size="30" bold="true" color="0xEEF2E8" text="ToolBoxel" />
+  <text id="subtitle" x="24" y="52" size="14" color="0xAAB4A2" text="Elegí qué interfaz abrir desde el menú principal." />
+
+  <panel id="chooser" title="Modo de trabajo" x="24" y="92" w="932" h="178">
+    <button id="spritemapBtn" x="0" y="0" w="250" h="58" text="Abrir Spritemap to Funky" />
+    <button id="funkierBtn" x="266" y="0" w="250" h="58" text="Abrir Funkier-Pacher" />
+    <button id="clearBtn" x="532" y="0" w="160" h="58" text="Limpiar log" />
+    <text id="hint" x="0" y="82" size="13" color="0xAAB4A2" text="Herramientas para creacion de niveles de FUNKY MAKER!: MOBILE" />
+    <text id="hint2" x="0" y="108" size="13" color="0xAAB4A2" text="Usá Spritemap para el flujo principal y Funkier-Pacher para la variante integrada de mi pagina web." />
+  </panel>
+
+  <text id="footer" x="24" y="676" size="12" color="0xAAB4A2" text="© 2026 Jarret Labs" />
+</ui>

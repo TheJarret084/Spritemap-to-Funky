@@ -1,0 +1,47 @@
+name: spritemap_to_funky
+description: Flutter rewrite of the Spritemap to Funky Android tool.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  archive: ^3.6.1
+  file_picker: ^8.1.2
+  image: ^4.2.0
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  share_plus: ^10.0.2
+  xml: ^6.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/buttons/
+    - assets/fonts/DepartureMono/
+    - assets/fonts/Terminus/
+    - assets/info-icons/Jarret/
+    - assets/info-icons/icon/
+    - assets/info-icons/thiago/
+    - assets/info-icons/unwi/
+    - assets/info-icons/yrik/
+    - assets/other/
+    - assets/ui/
+  fonts:
+    - family: DepartureMono
+      fonts:
+        - asset: assets/fonts/DepartureMono/DepartureMonoNerdFontMono-Regular.otf
+    - family: Terminus
+      fonts:
+        - asset: assets/fonts/Terminus/TerminessNerdFontPropo-Regular.ttf
+        - asset: assets/fonts/Terminus/TerminessNerdFontPropo-Bold.ttf
+          weight: 700

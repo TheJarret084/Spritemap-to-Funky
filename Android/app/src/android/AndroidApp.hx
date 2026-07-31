@@ -1,0 +1,158 @@
+package android;
+
+import android.AppLogger;
+import android.gestor.ImportadorMediaBackend;
+import haxe.Timer;
+import lime.system.System;
+import lime.utils.Assets as LimeAssets;
+import openfl.Assets;
+import openfl.Lib;
+import openfl.display.Application;
+import openfl.display.Sprite;
+import openfl.text.TextField;
+import openfl.text.TextFormat;
+import openfl.ui.Multitouch;
+import openfl.ui.MultitouchInputMode;
+
+class AndroidApp {
+    var host:Application;
+    var mounted:Bool = false;
+    var virtualMouse:VirtualMouse;
+
+    public function new(host:Application) {
+        this.host = host;
+
+        // Instalar el interceptor de trace() lo antes posible.
+        // A partir de aquí TODOS los trace() van a AppLogger y de ahí a la UI.
+        AppLogger.install();
+    }
+
+    public function onWindowCreate():Void {
+        if (host.window != null) {
+            #if android
+            host.window.width  = 720;
+            host.window.height = 1280;
+            host.window.fullscreen = false;
+            // TOUCH_POINT: le pedimos a Lime touch crudo (TouchEvent) y que
+            // NO intente además simular su propio MouseEvent por su cuenta.
+            // Esa simulación automática es la que fallaba en el dispositivo.
+            // En vez de depender de ella, VirtualMouse (ver ese archivo)
+            // escucha estos TouchEvent y genera nosotros mismos los
+            // MouseEvent que ya usa el resto de la UI.
+            Multitouch.inputMode = MultitouchInputMode.TOUCH_POINT;
+            #else
+            host.window.width  = 980;
+            host.window.height = 720;
+            host.window.fullscreen = false;
+            #end
+        }
+    }
+
+    public function onPreloadComplete():Void {
+        if (mounted) return;
+
+        // ── Crear carpetas de media en el primer inicio ───────────────────────
+        //    Silencioso si ya existen; loguea si las crea.
+        #if android
+        try {
+            ImportadorMediaBackend.ensureMediaDirectories();
+        } catch (error:Dynamic) {
+            AppLogger.err("No pude preparar carpetas media: " + Std.string(error));
+        }
+        #end
+
+        try {
+            Backend.resetWorkspace();
+        } catch (error:Dynamic) {
+            AppLogger.err("No pude limpiar workspace temporal: " + Std.string(error));
+        }
+
+        var splashAsset = AppConfig.resolveAssetPath(AppConfig.SPLASH_ASSET_PATH);
+        if (Assets.exists(splashAsset) || LimeAssets.exists(splashAsset)) {
+            mount(new SplashView(splashAsset, function() {
+                #if caros
+                // ── Caros Edition ─────────────────────────────────────────────
+                //   Solo activo con:  lime build android -D caros
+                //   NO se dispara en builds normales ni en -debug.
+                startCarosEdition();
+                #else
+                replaceWith(new MainView());
+                #end
+            }));
+            return;
+        }
+
+        #if caros
+        startCarosEdition();
+        #else
+        mount(new MainView());
+        #end
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Helpers de montaje
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function mount(view:Sprite):Void {
+        if (mounted) return;
+        mounted = true;
+        Lib.current.addChild(view);
+
+        #if android
+        if (virtualMouse == null && Lib.current.stage != null) {
+            virtualMouse = new VirtualMouse(Lib.current.stage);
+        }
+        #end
+    }
+
+    function replaceWith(view:Sprite):Void {
+        while (Lib.current.numChildren > 0)
+            Lib.current.removeChildAt(Lib.current.numChildren - 1);
+        mounted = false;
+        mount(view);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Caros Edition  (solo compila con -D caros)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #if caros
+    function startCarosEdition():Void {
+        AppLogger.warn("Caros Edition activada.");
+
+        var carosVideoAsset = AppConfig.resolveAssetPath(AppConfig.CAROS_VIDEO_ASSET);
+        var destPath        = AppConfig.getCarosVideoPath();
+
+        // Extraer el video del APK al storage interno si todavía no existe
+        if (!sys.FileSystem.exists(destPath)) {
+            var bytes = Assets.getBytes(carosVideoAsset);
+            if (bytes == null) bytes = LimeAssets.getBytes(carosVideoAsset);
+            if (bytes != null) {
+                try {
+                    var out = sys.io.File.write(destPath, true);
+                    out.write(bytes);
+                    out.close();
+                } catch (_:Dynamic) {}
+            }
+        }
+
+        if (sys.FileSystem.exists(destPath)) {
+            try { System.openFile(destPath); } catch (_:Dynamic) {}
+        }
+
+        Timer.delay(function() {
+            try {
+                if (Lib.application != null && Lib.application.window != null)
+                    Lib.application.window.alert(AppConfig.CAROS_DIALOG_MESSAGE, AppConfig.CAROS_DIALOG_TITLE);
+            } catch (_:Dynamic) {}
+
+            Timer.delay(function() {
+                #if sys
+                Sys.exit(0);
+                #end
+            }, 450);
+
+        }, AppConfig.CAROS_VIDEO_DURATION_MS);
+    }
+    #end
+}

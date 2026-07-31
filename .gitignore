@@ -75,6 +75,7 @@ out*/
 /zips/
 /zips/*
 /zips/
-/home/jarret/apps/GitHub/Spritemap to Funky/Android/androidBuild/app/bin
+/Android/app/bin
 bin
-/Android/androidBuild/app/tests
+/Android/tests
+Android/apps
